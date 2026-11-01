@@ -2649,7 +2649,7 @@ emit_get_rgctx (MonoCompile *cfg, MonoMethod *method, int context_used)
 		MonoInst *mrgctx_loc, *mrgctx_var;
 
 		g_assert (!this);
-		g_assert (method->is_inflated && mono_method_get_context (method)->method_inst);
+		g_assert (mono_method_get_is_inflated(method) && mono_method_get_context (method)->method_inst);
 
 		mrgctx_loc = mono_get_vtable_var (cfg);
 		EMIT_NEW_TEMPLOAD (cfg, mrgctx_var, mrgctx_loc->inst_c0);
@@ -2663,7 +2663,7 @@ emit_get_rgctx (MonoCompile *cfg, MonoMethod *method, int context_used)
 		vtable_loc = mono_get_vtable_var (cfg);
 		EMIT_NEW_TEMPLOAD (cfg, vtable_var, vtable_loc->inst_c0);
 
-		if (method->is_inflated && mono_method_get_context (method)->method_inst) {
+		if (mono_method_get_is_inflated(method) && mono_method_get_context (method)->method_inst) {
 			MonoInst *mrgctx_var = vtable_var;
 			int vtable_reg;
 
@@ -5524,10 +5524,10 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 		g_assert (!sig->has_type_parameters);
 
 	if (sig->generic_param_count && method->wrapper_type == MONO_WRAPPER_NONE) {
-		g_assert (method->is_inflated);
+		g_assert (mono_method_get_is_inflated(method));
 		g_assert (mono_method_get_context (method)->method_inst);
 	}
-	if (method->is_inflated && mono_method_get_context (method)->method_inst)
+	if (mono_method_get_is_inflated(method) && mono_method_get_context (method)->method_inst)
 		g_assert (sig->generic_param_count);
 
 	if (cfg->method == method) {
@@ -6381,7 +6381,7 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 					goto load_error;
 				if (!dont_verify && !cfg->skip_visibility) {
 					MonoMethod *target_method = cil_method;
-					if (method->is_inflated) {
+					if (mono_method_get_is_inflated(method)) {
 						target_method = mini_get_method_allow_open (method, token, NULL, &(mono_method_get_generic_container (method_definition)->context));
 					}
 					if (!mono_method_can_access_method (method_definition, target_method) &&
@@ -6648,7 +6648,7 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 							cmethod, MONO_RGCTX_INFO_METHOD);
 
 					} else {
-						g_assert (cmethod->is_inflated);
+						g_assert (cmono_method_get_is_inflated(method));
 						EMIT_NEW_METHODCONST (cfg, imt_arg, cmethod);
 					}
 					ins = mono_emit_method_call_full (cfg, cmethod, fsig, sp, sp [0], imt_arg);
@@ -7738,7 +7738,7 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 
 			if (cmethod->klass->valuetype && mono_class_generic_sharing_enabled (cmethod->klass) &&
 					mono_method_is_generic_sharable_impl (cmethod, TRUE)) {
-				if (cmethod->is_inflated && mono_method_get_context (cmethod)->method_inst) {
+				if (cmono_method_get_is_inflated(method) && mono_method_get_context (cmethod)->method_inst) {
 					if (context_used) {
 						vtable_arg = emit_get_rgctx_method (cfg, context_used,
 							cmethod, MONO_RGCTX_INFO_METHOD_RGCTX);

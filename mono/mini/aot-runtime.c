@@ -2403,10 +2403,10 @@ mono_aot_get_method (MonoDomain *domain, MonoMethod *method)
 	g_assert (klass->inited);
 
 	/* Find method index */
-	if (method->is_inflated && mono_method_is_generic_sharable_impl (method, FALSE)) {
+	if (mono_method_get_is_inflated(method) && mono_method_is_generic_sharable_impl (method, FALSE)) {
 		method = mono_method_get_declaring_generic_method (method);
 		method_index = mono_metadata_token_index (method->token) - 1;
-	} else if (method->is_inflated || !method->token) {
+	} else if (mono_method_get_is_inflated(method) || !method->token) {
 		/* This hash table is used to avoid the slower search in the extra_method_table in the AOT image */
 		mono_aot_lock ();
 		code = g_hash_table_lookup (amodule->method_to_code, method);
@@ -3075,7 +3075,7 @@ mono_aot_get_unbox_trampoline (MonoMethod *method)
 	char *symbol;
 	gpointer code;
 
-	if (method->is_inflated && !mono_method_is_generic_sharable_impl (method, FALSE)) {
+	if (mono_method_get_is_inflated(method) && !mono_method_is_generic_sharable_impl (method, FALSE)) {
 		guint32 index = find_extra_method (method, &amodule);
 		g_assert (index != 0xffffff);
 		

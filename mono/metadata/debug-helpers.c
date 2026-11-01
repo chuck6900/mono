@@ -764,7 +764,7 @@ mono_method_full_name (MonoMethod *method, gboolean signature)
 	char *klass_desc = mono_type_full_name (&method->klass->byval_arg);
 	char *inst_desc = NULL;
 
-	if (method->is_inflated && fix(((MonoMethodInflated*)method)->context.method_inst)) {
+	if (mono_method_get_is_inflated(method) && fix(((MonoMethodInflated*)method)->context.method_inst)) {
 		GString *str = g_string_new ("");
 		g_string_append (str, "<");
 		ginst_get_desc (str, ((MonoMethodInflated*)method)->context.method_inst);

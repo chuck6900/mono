@@ -3003,7 +3003,7 @@ mono_method_get_header_summary (MonoMethod *method, MonoMethodHeaderSummary *sum
 	guint16 fat_flags;
 
 	/*Only the GMD has a pointer to the metadata.*/
-	while (method->is_inflated)
+	while (mono_method_get_is_inflated(method))
 		method = ((MonoMethodInflated*)method)->declaring;
 
 	summary->code_size = 0;

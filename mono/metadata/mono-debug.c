@@ -654,7 +654,7 @@ mono_debug_add_method (MonoMethod *method, MonoDebugMethodJitInfo *jit, MonoDoma
 	if (max_size > BUFSIZ)
 		g_free (oldptr);
 
-	declaring = method->is_inflated ? ((MonoMethodInflated *) method)->declaring : method;
+	declaring = mono_method_get_is_inflated(method) ? ((MonoMethodInflated *) method)->declaring : method;
 	header = g_hash_table_lookup (table->method_hash, declaring);
 
 	if (!header) {
@@ -941,7 +941,7 @@ mono_debug_lookup_method_addresses (MonoMethod *method)
 
 	mono_debugger_lock ();
 
-	declaring = method->is_inflated ? ((MonoMethodInflated *) method)->declaring : method;
+	declaring = mono_method_get_is_inflated(method) ? ((MonoMethodInflated *) method)->declaring : method;
 
 	data.method = declaring;
 	data.result = NULL;

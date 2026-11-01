@@ -1040,7 +1040,7 @@ mono_method_get_imt_slot (MonoMethod *method)
 	 * instantiations of the same generic interface.
 	 * The code in build_imt_slots () depends on this.
 	 */
-	if (method->is_inflated)
+	if (mono_method_get_is_inflated(method))
 		method = ((MonoMethodInflated*)method)->declaring;
 
 	sig = mono_method_signature (method);
@@ -2514,7 +2514,7 @@ mono_object_get_virtual_method (MonoObject *obj, MonoMethod *method)
 
 	if (method->slot == -1) {
 		/* method->slot might not be set for instances of generic methods */
-		if (method->is_inflated) {
+		if (mono_method_get_is_inflated(method)) {
 			g_assert (((MonoMethodInflated*)method)->declaring->slot != -1);
 			method->slot = ((MonoMethodInflated*)method)->declaring->slot; 
 		} else {
@@ -2550,7 +2550,7 @@ mono_object_get_virtual_method (MonoObject *obj, MonoMethod *method)
 				res = mono_marshal_get_remoting_invoke (res);
 		}
 	} else {
-		if (method->is_inflated) {
+		if (mono_method_get_is_inflated(method)) {
 			/* Have to inflate the result */
 			res = mono_class_inflate_generic_method (res, &((MonoMethodInflated*)method)->context);
 		}

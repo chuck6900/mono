@@ -672,7 +672,7 @@ verifier_get_generic_param_from_type (VerifyContext *ctx, MonoType *type)
 		gc = gtd->generic_container;
 	} else { //MVAR
 		MonoMethod *gmd = method;
-		if (method->is_inflated)
+		if (mono_method_get_is_inflated(method))
 			gmd = ((MonoMethodInflated*)method)->declaring;
 		gc = mono_method_get_generic_container (gmd);
 	}
@@ -833,7 +833,7 @@ mono_method_is_valid_in_context (VerifyContext *ctx, MonoMethod *method)
 	if (!mono_type_is_valid_in_context (ctx, &method->klass->byval_arg))
 		return RESULT_INVALID;
 
-	if (!method->is_inflated)
+	if (!mono_method_get_is_inflated(method))
 		return RESULT_VALID;
 
 	if (!mono_method_is_valid_generic_instantiation (ctx, method)) {
@@ -6540,7 +6540,7 @@ mono_verifier_class_is_valid_generic_instantiation (MonoClass *class)
 gboolean
 mono_verifier_is_method_valid_generic_instantiation (MonoMethod *method)
 {
-	if (!method->is_inflated)
+	if (!mono_method_get_is_inflated(method))
 		return TRUE;
 	if (!mono_verifier_is_enabled_for_method (method))
 		return TRUE;

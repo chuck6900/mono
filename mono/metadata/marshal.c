@@ -3721,7 +3721,7 @@ mono_marshal_get_delegate_invoke (MonoMethod *method, MonoDelegate *del)
 	if (del && !del->target && del->method && mono_method_signature (del->method)->hasthis) {
 		callvirt = TRUE;
 		target_method = del->method;
-		if (target_method->is_inflated) {
+		if (target_mono_method_get_is_inflated(method)) {
 			MonoType *target_type;
 
 			g_assert (method->signature->hasthis);
@@ -11015,7 +11015,7 @@ mono_marshal_free_inflated_wrappers (MonoMethod *method)
 {
        MonoMethodSignature *sig = method->signature;
 
-       g_assert (method->is_inflated);
+       g_assert (mono_method_get_is_inflated(method));
 
        /* Ignore calls occuring late during cleanup.  */
        if (!marshal_mutex_initialized)

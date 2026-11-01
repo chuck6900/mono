@@ -2685,7 +2685,7 @@ ves_icall_MonoMethod_GetGenericMethodDefinition (MonoReflectionMethod *method)
 	if (method->method->is_generic)
 		return method;
 
-	if (!method->method->is_inflated)
+	if (!method->mono_method_get_is_inflated(method))
 		return NULL;
 
 	imethod = (MonoMethodInflated *) method->method;
@@ -2747,7 +2747,7 @@ ves_icall_MonoMethod_GetGenericArguments (MonoReflectionMethod *method)
 
 	domain = mono_object_domain (method);
 
-	if (method->method->is_inflated) {
+	if (method->mono_method_get_is_inflated(method)) {
 		MonoGenericInst *inst = mono_method_get_context (method->method)->method_inst;
 
 		if (inst) {
@@ -4763,7 +4763,7 @@ static MonoMethod*
 mono_method_get_equivalent_method (MonoMethod *method, MonoClass *klass)
 {
 	int offset = -1, i;
-	if (method->is_inflated && ((MonoMethodInflated*)method)->context.method_inst) {
+	if (mono_method_get_is_inflated(method) && ((MonoMethodInflated*)method)->context.method_inst) {
 		MonoMethodInflated *inflated = (MonoMethodInflated*)method;
 		//method is inflated, we should inflate it on the other class
 		MonoGenericContext ctx;
@@ -7747,7 +7747,7 @@ mono_lookup_internal_call (MonoMethod *method)
 
 	g_assert (method != NULL);
 
-	if (method->is_inflated)
+	if (mono_method_get_is_inflated(method))
 		method = ((MonoMethodInflated *) method)->declaring;
 
 	if (method->klass->nested_in) {

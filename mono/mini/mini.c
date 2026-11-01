@@ -3231,7 +3231,7 @@ if (valgrind_register){
 	{
 		gboolean is_generic = FALSE;
 
-		if (cfg->method->is_inflated || mono_method_get_generic_container (cfg->method) ||
+		if (cfg->mono_method_get_is_inflated(method) || mono_method_get_generic_container (cfg->method) ||
 				cfg->method->klass->generic_container || cfg->method->klass->generic_class) {
 			is_generic = TRUE;
 		}

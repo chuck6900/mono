@@ -808,7 +808,7 @@ mono_method_get_signature_full (MonoMethod *method, MonoImage *image, guint32 to
 
 	if (table == MONO_TABLE_METHODSPEC) {
 		/* the verifier (do_invoke_method) will turn the NULL into a verifier error */
-		if ((method->flags & METHOD_ATTRIBUTE_PINVOKE_IMPL) || !method->is_inflated)
+		if ((method->flags & METHOD_ATTRIBUTE_PINVOKE_IMPL) || !mono_method_get_is_inflated(method))
 			return NULL;
 
 		return mono_method_signature (method);
@@ -1086,7 +1086,7 @@ method_from_methodspec (MonoImage *image, MonoGenericContext *context, guint32 i
 	klass = method->klass;
 
 	if (klass->generic_class) {
-		g_assert (method->is_inflated);
+		g_assert (mono_method_get_is_inflated(method));
 		method = ((MonoMethodInflated *) method)->declaring;
 	}
 
@@ -1714,7 +1714,7 @@ mono_get_method_constrained (MonoImage *image, guint32 token, MonoClass *constra
 	if (sig == NULL)
 		return NULL;
 
-	if (method->is_inflated && sig->generic_param_count) {
+	if (mono_method_get_is_inflated(method) && sig->generic_param_count) {
 		MonoMethodInflated *imethod = (MonoMethodInflated *) method;
 		sig = mono_method_signature (imethod->declaring); /*We assume that if the inflated method signature is valid, the declaring method is too*/
 		method_context = mono_method_get_context (method);
@@ -1808,7 +1808,7 @@ mono_method_get_param_names (MonoMethod *method, const char **names)
 	MonoMethodSignature *signature;
 	guint32 idx;
 
-	if (method->is_inflated)
+	if (mono_method_get_is_inflated(method))
 		method = ((MonoMethodInflated *) method)->declaring;
 
 	signature = mono_method_signature (method);
@@ -2006,7 +2006,7 @@ mono_method_get_wrapper_data (MonoMethod *method, guint32 id)
 	g_assert (method != NULL);
 	g_assert (method->wrapper_type != MONO_WRAPPER_NONE);
 
-	if (method->is_inflated)
+	if (mono_method_get_is_inflated(method))
 		method = ((MonoMethodInflated *) method)->declaring;
 	data = ((MonoMethodWrapper *)method)->method_data;
 	g_assert (data != NULL);
@@ -2297,7 +2297,7 @@ mono_method_get_header (MonoMethod *method)
 #endif
 		return mn->header;
 
-	if (method->is_inflated) {
+	if (mono_method_get_is_inflated(method)) {
 		MonoMethodInflated *imethod = (MonoMethodInflated *) method;
 		MonoMethodHeader *header;
 

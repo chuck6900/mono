@@ -2467,7 +2467,7 @@ get_seq_points (MonoDomain *domain, MonoMethod *method)
 
 	mono_domain_lock (domain);
 	seq_points = g_hash_table_lookup (domain_jit_info (domain)->seq_points, method);
-	if (!seq_points && method->is_inflated) {
+	if (!seq_points && mono_method_get_is_inflated(method)) {
 		/* generic sharing + aot */
 		seq_points = g_hash_table_lookup (domain_jit_info (domain)->seq_points, mono_method_get_declaring_generic_method (method));
 		// UNITY: Generic sharing not implemented/enabled yet
@@ -3509,7 +3509,7 @@ remove_breakpoint (BreakpointInstance *inst)
 static inline gboolean
 bp_matches_method (MonoBreakpoint *bp, MonoMethod *method)
 {
-	return (!bp->method || method == bp->method || (method->is_inflated && ((MonoMethodInflated*)method)->declaring == bp->method));
+	return (!bp->method || method == bp->method || (mono_method_get_is_inflated(method) && ((MonoMethodInflated*)method)->declaring == bp->method));
 }
 
 /*

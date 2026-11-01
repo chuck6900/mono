@@ -896,7 +896,7 @@ mono_class_inflate_generic_method_full_checked (MonoMethod *method, MonoClass *k
 	mono_error_init (error);
 
 	/* The `method' has already been instantiated before => we need to peel out the instantiation and create a new context */
-	while (method->is_inflated) {
+	while (mono_method_get_is_inflated(method)) {
 		MonoGenericContext *method_context = mono_method_get_context (method);
 		MonoMethodInflated *imethod = (MonoMethodInflated *) method;
 
@@ -1059,7 +1059,7 @@ mono_get_inflated_method (MonoMethod *method)
 MonoGenericContext*
 mono_method_get_context_general (MonoMethod *method, gboolean uninflated)
 {
-	if (method->is_inflated) {
+	if (mono_method_get_is_inflated(method)) {
 		MonoMethodInflated *imethod = (MonoMethodInflated *) method;
 		return &imethod->context;
 	}
@@ -3414,7 +3414,7 @@ print_vtable_full (MonoClass *class, MonoMethod** vtable, int size, int first_no
 static int
 mono_method_try_get_vtable_index (MonoMethod *method)
 {
-	if (method->is_inflated && (method->flags & METHOD_ATTRIBUTE_VIRTUAL)) {
+	if (mono_method_get_is_inflated(method) && (method->flags & METHOD_ATTRIBUTE_VIRTUAL)) {
 		MonoMethodInflated *imethod = (MonoMethodInflated*)method;
 		if (imethod->declaring->is_generic)
 			return imethod->declaring->slot;
@@ -4078,7 +4078,7 @@ mono_method_get_vtable_slot (MonoMethod *method)
 int
 mono_method_get_vtable_index (MonoMethod *method)
 {
-	if (method->is_inflated && (method->flags & METHOD_ATTRIBUTE_VIRTUAL)) {
+	if (mono_method_get_is_inflated(method) && (method->flags & METHOD_ATTRIBUTE_VIRTUAL)) {
 		MonoMethodInflated *imethod = (MonoMethodInflated*)method;
 		if (imethod->declaring->is_generic)
 			return mono_method_get_vtable_slot (imethod->declaring);
@@ -4435,7 +4435,7 @@ mono_class_init (MonoClass *class)
 		class->ghcimpl = 1;
 		if (class->parent) { 
 			MonoMethod *cmethod = class->vtable [ghc_slot];
-			if (cmethod->is_inflated)
+			if (cmono_method_get_is_inflated(method))
 				cmethod = ((MonoMethodInflated*)cmethod)->declaring;
 			if (cmethod == default_ghc) {
 				class->ghcimpl = 0;
@@ -4472,7 +4472,7 @@ mono_class_init (MonoClass *class)
 					if (class->parent) { 
 						cmethod = class->vtable [finalize_slot];
 						g_assert (cmethod);
-						if (cmethod->is_inflated)
+						if (cmono_method_get_is_inflated(method))
 							cmethod = ((MonoMethodInflated*)cmethod)->declaring;
 						if (cmethod != default_finalize) {
 							class->has_finalize = 1;

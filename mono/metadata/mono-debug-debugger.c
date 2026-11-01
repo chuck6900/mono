@@ -194,7 +194,7 @@ mono_debugger_check_breakpoints (MonoMethod *method, MonoDebugMethodAddress *deb
 {
 	int i;
 
-	if (method->is_inflated)
+	if (mono_method_get_is_inflated(method))
 		method = ((MonoMethodInflated *) method)->declaring;
 
 	if (method_breakpoints) {

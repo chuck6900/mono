@@ -422,7 +422,7 @@ mono_method_get_declaring_generic_method (MonoMethod *method)
 {
 	MonoMethodInflated *inflated;
 
-	g_assert (method->is_inflated);
+	g_assert (mono_method_get_is_inflated(method));
 
 	inflated = (MonoMethodInflated*)method;
 
@@ -449,7 +449,7 @@ mono_class_get_method_generic (MonoClass *klass, MonoMethod *method)
 	MonoMethod *declaring, *m;
 	int i;
 
-	if (method->is_inflated)
+	if (mono_method_get_is_inflated(method))
 		declaring = mono_method_get_declaring_generic_method (method);
 	else
 		declaring = method;
@@ -1010,7 +1010,7 @@ mono_method_lookup_or_register_other_info (MonoMethod *method, gboolean in_mrgct
 	if (in_mrgctx) {
 		MonoGenericInst *method_inst = mono_method_get_context (method)->method_inst;
 
-		g_assert (method->is_inflated && method_inst);
+		g_assert (mono_method_get_is_inflated(method) && method_inst);
 		type_argc = method_inst->type_argc;
 		g_assert (type_argc > 0);
 	} else {
@@ -1342,7 +1342,7 @@ mono_generic_context_is_sharable (MonoGenericContext *context, gboolean allow_ty
 gboolean
 mono_method_is_generic_impl (MonoMethod *method)
 {
-	if (method->is_inflated) {
+	if (mono_method_get_is_inflated(method)) {
 		g_assert (method->wrapper_type == MONO_WRAPPER_NONE);
 		return TRUE;
 	}
@@ -1389,7 +1389,7 @@ mono_method_is_generic_sharable_impl (MonoMethod *method, gboolean allow_type_va
 	if (!mono_method_is_generic_impl (method))
 		return FALSE;
 
-	if (method->is_inflated) {
+	if (mono_method_get_is_inflated(method)) {
 		MonoMethodInflated *inflated = (MonoMethodInflated*)method;
 		MonoGenericContext *context = &inflated->context;
 
@@ -1430,7 +1430,7 @@ mono_method_needs_static_rgctx_invoke (MonoMethod *method, gboolean allow_type_v
 	if (!mono_method_is_generic_sharable_impl (method, allow_type_vars))
 		return FALSE;
 
-	if (method->is_inflated && mono_method_get_context (method)->method_inst)
+	if (mono_method_get_is_inflated(method) && mono_method_get_context (method)->method_inst)
 		return TRUE;
 
 	return ((method->flags & METHOD_ATTRIBUTE_STATIC) ||

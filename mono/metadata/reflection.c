@@ -2405,7 +2405,7 @@ mono_image_get_methodref_token (MonoDynamicImage *assembly, MonoMethod *method, 
 	if (token && !create_typespec)
 		return token;
 
-	g_assert (!method->is_inflated);
+	g_assert (!mono_method_get_is_inflated(method));
 	if (!token) {
 		/*
 		 * A methodref signature can't contain an unmanaged calling convention.
@@ -2734,7 +2734,7 @@ mono_reflection_method_on_tb_inst_get_handle (MonoReflectionMethodOnTypeBuilderI
 	if (m->method_args == NULL)
 		return method;
 
-	if (method->is_inflated)
+	if (mono_method_get_is_inflated(method))
 		method = ((MonoMethodInflated *) method)->declaring;
 
 	count = mono_array_length (m->method_args);
@@ -2834,7 +2834,7 @@ method_encode_methodspec (MonoDynamicImage *assembly, MonoMethod *method)
 
 	table = &assembly->tables [MONO_TABLE_METHODSPEC];
 
-	g_assert (method->is_inflated);
+	g_assert (mono_method_get_is_inflated(method));
 	imethod = (MonoMethodInflated *) method;
 	declaring = imethod->declaring;
 
@@ -2880,7 +2880,7 @@ mono_image_get_methodspec_token (MonoDynamicImage *assembly, MonoMethod *method)
 	if (token)
 		return token;
 
-	g_assert (method->is_inflated);
+	g_assert (mono_method_get_is_inflated(method));
 	imethod = (MonoMethodInflated *) method;
 
 	if (mono_method_signature (imethod->declaring)->generic_param_count) {
@@ -4763,7 +4763,7 @@ mono_image_create_token (MonoDynamicImage *assembly, MonoObject *obj,
 		   strcmp (klass->name, "MonoGenericMethod") == 0 ||
 		   strcmp (klass->name, "MonoGenericCMethod") == 0) {
 		MonoReflectionMethod *m = (MonoReflectionMethod *)obj;
-		if (m->method->is_inflated) {
+		if (m->mono_method_get_is_inflated(method)) {
 			if (create_methodspec)
 				token = mono_image_get_methodspec_token (assembly, m->method);
 			else
@@ -6387,7 +6387,7 @@ mono_method_get_object (MonoDomain *domain, MonoMethod *method, MonoClass *refcl
 	MonoClass *klass;
 	MonoReflectionMethod *ret;
 
-	if (method->is_inflated) {
+	if (mono_method_get_is_inflated(method)) {
 		MonoReflectionGenericMethod *gret;
 
 		refclass = method->klass;
@@ -6851,7 +6851,7 @@ get_default_param_value_blobs (MonoMethod *method, char **blobs, guint32 *types)
 
 	if (klass->image->dynamic) {
 		MonoReflectionMethodAux *aux;
-		if (method->is_inflated)
+		if (mono_method_get_is_inflated(method))
 			method = ((MonoMethodInflated*)method)->declaring;
 		aux = g_hash_table_lookup (((MonoDynamicImage*)method->klass->image)->method_aux_hash, method);
 		if (aux && aux->param_defaults) {
@@ -7537,7 +7537,7 @@ mono_reflection_get_token (MonoObject *obj)
 		   strcmp (klass->name, "MonoGenericMethod") == 0 ||
 		   strcmp (klass->name, "MonoGenericCMethod") == 0) {
 		MonoReflectionMethod *m = (MonoReflectionMethod *)obj;
-		if (m->method->is_inflated) {
+		if (m->mono_method_get_is_inflated(method)) {
 			MonoMethodInflated *inflated = (MonoMethodInflated *) m->method;
 			return inflated->declaring->token;
 		} else {
@@ -8326,7 +8326,7 @@ mono_custom_attrs_from_method (MonoMethod *method)
 	 * LAMESPEC: The .NET SRE throws an exception for instantiations of generic method builders
 	 *           Note that this stanza is not necessary for non-SRE types, but it's a micro-optimization
 	 */
-	if (method->is_inflated)
+	if (mono_method_get_is_inflated(method))
 		method = ((MonoMethodInflated *) method)->declaring;
 	
 	if (method->dynamic || method->klass->image->dynamic)
@@ -8466,7 +8466,7 @@ mono_custom_attrs_from_param (MonoMethod *method, guint32 param)
 	 * LAMESPEC: The .NET SRE throws an exception for instantiations of generic method builders
 	 *           Note that this stanza is not necessary for non-SRE types, but it's a micro-optimization
 	 */
-	if (method->is_inflated)
+	if (mono_method_get_is_inflated(method))
 		method = ((MonoMethodInflated *) method)->declaring;
 
 	if (method->klass->image->dynamic) {
@@ -10155,7 +10155,7 @@ mono_reflection_bind_generic_method_parameters (MonoReflectionMethod *rmethod, M
 
 	klass = method->klass;
 
-	if (method->is_inflated)
+	if (mono_method_get_is_inflated(method))
 		method = ((MonoMethodInflated *) method)->declaring;
 
 	count = mono_method_signature (method)->generic_param_count;

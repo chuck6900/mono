@@ -40,7 +40,7 @@ ldvirtfn_internal (MonoObject *obj, MonoMethod *method, gboolean gshared)
 
 	res = mono_object_get_virtual_method (obj, method);
 
-	if (gshared && method->is_inflated && mono_method_get_context (method)->method_inst) {
+	if (gshared && mono_method_get_is_inflated(method) && mono_method_get_context (method)->method_inst) {
 		MonoGenericContext context = { NULL, NULL };
 
 		if (res->klass->generic_class)

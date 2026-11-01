@@ -1610,7 +1610,7 @@ encode_method_ref (MonoAotCompile *acfg, MonoMethod *method, guint8 *buf, guint8
 			MonoMethod *declaring;
 			MonoGenericContext *context = mono_method_get_context (method);
 
-			g_assert (method->is_inflated);
+			g_assert (mono_method_get_is_inflated(method));
 			declaring = ((MonoMethodInflated*)method)->declaring;
 
 			/*
@@ -2293,7 +2293,7 @@ method_has_type_vars (MonoMethod *method)
 	if (has_type_vars (method->klass))
 		return TRUE;
 
-	if (method->is_inflated) {
+	if (mono_method_get_is_inflated(method)) {
 		MonoGenericContext *context = mono_method_get_context (method);
 		if (context->method_inst) {
 			int i;
@@ -2834,7 +2834,7 @@ emit_method_code (MonoAotCompile *acfg, MonoCompile *cfg)
 	if (acfg->aot_opts.full_aot && cfg->orig_method->klass->valuetype && (method->flags & METHOD_ATTRIBUTE_VIRTUAL)) {
 		char call_target [256];
 
-		if (!method->wrapper_type && !method->is_inflated) {
+		if (!method->wrapper_type && !mono_method_get_is_inflated(method)) {
 			g_assert (method->token);
 			sprintf (symbol, "ut_%d", mono_metadata_token_index (method->token) - 1);
 		} else {

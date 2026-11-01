@@ -430,7 +430,7 @@ get_generic_context_from_stack_frame (MonoJitInfo *ji, gpointer generic_info)
 
 	g_assert (generic_info);
 
-	g_assert (ji->method->is_inflated);
+	g_assert (ji->mono_method_get_is_inflated(method));
 	if (mono_method_get_context (ji->method)->method_inst) {
 		MonoMethodRuntimeGenericContext *mrgctx = generic_info;
 
