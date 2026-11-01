@@ -136,7 +136,7 @@ mono_class_from_typeref (MonoImage *image, guint32 type_token)
 		if (!enclosing)
 			return NULL;
 
-		if (enclosing->nested_classes_inited && enclosing->ext) {
+		if (mono_class_get_nested_classes_inited(enclosing) && enclosing->ext) {
 			/* Micro-optimization: don't scan the metadata tables if enclosing is already inited */
 			for (tmp = enclosing->ext->nested_classes; tmp; tmp = tmp->next) {
 				res = tmp->data;
@@ -360,7 +360,7 @@ mono_type_get_name_recurse (MonoType *type, GString *str, gboolean is_recursed,
 				g_string_append_c (str, '<');
 			else
 				g_string_append_c (str, '[');
-			for (i = 0; i < inst->type_argc; i++) {
+			for (i = 0; i < mono_generic_inst_get_type_argc(inst); i++) {
 				MonoType *t = inst->type_argv [i];
 
 				if (i)
@@ -386,7 +386,7 @@ mono_type_get_name_recurse (MonoType *type, GString *str, gboolean is_recursed,
 				g_string_append_c (str, '<');
 			else
 				g_string_append_c (str, '[');
-			for (i = 0; i < klass->generic_container->type_argc; i++) {
+			for (i = 0; i < mono_generic_container_get_type_argc(klass->generic_container); i++) {
 				if (i)
 					g_string_append_c (str, ',');
 				g_string_append (str, mono_generic_container_get_param_info (klass->generic_container, i)->name);

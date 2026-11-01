@@ -13,8 +13,8 @@
 #include <mono/metadata/object-internals.h>
 #include <mono/utils/gc_wrapper.h>
 
-#define mono_domain_finalizers_lock(domain) EnterCriticalSection (&(domain)->finalizable_objects_hash_lock.mutex);
-#define mono_domain_finalizers_unlock(domain) LeaveCriticalSection (&(domain)->finalizable_objects_hash_lock.mutex);
+#define mono_domain_finalizers_lock(domain) EnterCriticalSection ((domain)->finalizable_objects_hash_lock.mutex);
+#define mono_domain_finalizers_unlock(domain) LeaveCriticalSection ((domain)->finalizable_objects_hash_lock.mutex);
 
 #define MONO_GC_REGISTER_ROOT(x) mono_gc_register_root ((char*)&(x), sizeof(x), NULL)
 

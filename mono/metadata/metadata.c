@@ -1236,8 +1236,8 @@ mono_metadata_parse_custom_mod (MonoImage *m, MonoCustomMod *dest, const char *p
 	if ((*ptr == MONO_TYPE_CMOD_OPT) || (*ptr == MONO_TYPE_CMOD_REQD)) {
 		if (!dest)
 			dest = &local;
-		dest->required = *ptr == MONO_TYPE_CMOD_REQD ? 1 : 0;
-		dest->token = mono_metadata_parse_typedef_or_ref (m, ptr + 1, rptr);
+		mono_custom_mod_set_required(dest, *ptr == MONO_TYPE_CMOD_REQD ? 1 : 0);
+		mono_custom_mod_set_token(dest, mono_metadata_parse_typedef_or_ref (m, ptr + 1, rptr));
 		return TRUE;
 	}
 	return FALSE;
@@ -1385,10 +1385,10 @@ static guint
 mono_type_hash (gconstpointer data)
 {
 	const MonoType *type = (const MonoType *) data;
-	if (type->type == MONO_TYPE_GENERICINST)
+	if (mono_type_get_type_code(type) == MONO_TYPE_GENERICINST)
 		return mono_generic_class_hash (type->data.generic_class);
 	else
-		return type->type | (type->byref << 8) | (type->attrs << 9);
+		return mono_type_get_type_code(type) | (mono_type_get_byref(type) << 8) | (mono_type_get_attrs(type) << 9);
 }
 
 static gint
@@ -1397,7 +1397,10 @@ mono_type_equal (gconstpointer ka, gconstpointer kb)
 	const MonoType *a = (const MonoType *) ka;
 	const MonoType *b = (const MonoType *) kb;
 	
-	if (a->type != b->type || a->byref != b->byref || a->attrs != b->attrs || a->pinned != b->pinned)
+	if (mono_type_get_type_code(a) != mono_type_get_type_code(b) ||
+	    mono_type_get_byref(a) != mono_type_get_byref(b) ||
+	    mono_type_get_attrs(a) != mono_type_get_attrs(b) ||
+	    mono_type_get_pinned(a) != mono_type_get_pinned(b))
 		return 0;
 	/* need other checks */
 	return 1;
@@ -1410,12 +1413,12 @@ mono_metadata_generic_inst_hash (gconstpointer data)
 	guint hash = 0;
 	int i;
 	
-	for (i = 0; i < ginst->type_argc; ++i) {
+	for (i = 0; i < mono_generic_inst_get_type_argc(ginst); ++i) {
 		hash *= 13;
 		hash += mono_metadata_type_hash (ginst->type_argv [i]);
 	}
 
-	return hash ^ (ginst->is_open << 8);
+	return hash ^ (mono_generic_inst_get_is_open(ginst) << 8);
 }
 
 static gboolean
@@ -1430,9 +1433,9 @@ mono_generic_inst_equal_full (const MonoGenericInst *a, const MonoGenericInst *b
 			return FALSE;
 	}
 
-	if (a->is_open != b->is_open || a->type_argc != b->type_argc)
+	if (mono_generic_inst_get_is_open(a) != mono_generic_inst_get_is_open(b) || mono_generic_inst_get_type_argc(a) != mono_generic_inst_get_type_argc(b))
 		return FALSE;
-	for (i = 0; i < a->type_argc; ++i) {
+	for (i = 0; i < mono_generic_inst_get_type_argc(a); ++i) {
 		if (!do_mono_metadata_type_equal (a->type_argv [i], b->type_argv [i], signature_only))
 			return FALSE;
 	}
@@ -1455,7 +1458,7 @@ mono_generic_class_hash (gconstpointer data)
 	guint hash = mono_metadata_type_hash (&gclass->container_class->byval_arg);
 
 	hash *= 13;
-	hash += gclass->is_tb_open;
+	hash += mono_generic_class_get_is_tb_open(gclass);
 	hash += mono_metadata_generic_context_hash (&gclass->context);
 
 	return hash;
@@ -1583,7 +1586,7 @@ mono_metadata_parse_type_full (MonoImage *m, MonoGenericContainer *container, Mo
 
 	if (count) {
 		type = mono_image_alloc0 (m, MONO_SIZEOF_TYPE + ((gint32)count) * sizeof (MonoCustomMod));
-		type->num_mods = count;
+		mono_type_set_num_mods(type, count);
 		if (count > 64)
 			g_warning ("got more than 64 modifiers in type");
 	} else {
@@ -1614,9 +1617,9 @@ mono_metadata_parse_type_full (MonoImage *m, MonoGenericContainer *container, Mo
 		}
 	}
 	
-	type->attrs = opt_attrs;
-	type->byref = byref;
-	type->pinned = pinned ? 1 : 0;
+	mono_type_set_attrs(type, opt_attrs);
+	mono_type_set_byref(type, byref);
+	mono_type_set_pinned(type, pinned ? 1 : 0);
 
 	if (!do_mono_metadata_parse_type (type, m, container, ptr, &ptr)) {
 		return NULL;
@@ -1625,10 +1628,10 @@ mono_metadata_parse_type_full (MonoImage *m, MonoGenericContainer *container, Mo
 	if (rptr)
 		*rptr = ptr;
 
-	if (!type->num_mods) {
+	if (!mono_type_get_num_mods(type)) {
 		/* no need to free type here, because it is on the stack */
-		if ((type->type == MONO_TYPE_CLASS || type->type == MONO_TYPE_VALUETYPE) && !type->pinned && !type->attrs) {
-			MonoType *ret = type->byref ? &type->data.klass->this_arg : &type->data.klass->byval_arg;
+		if ((mono_type_get_type_code(type) == MONO_TYPE_CLASS || mono_type_get_type_code(type) == MONO_TYPE_VALUETYPE) && !mono_type_get_pinned(type) && !mono_type_get_attrs(type)) {
+			MonoType *ret = mono_type_get_byref(type) ? &type->data.klass->this_arg : &type->data.klass->byval_arg;
 
 			/* Consider the case:
 
@@ -1911,10 +1914,10 @@ mono_metadata_parse_method_signature_full (MonoImage *m, MonoGenericContainer *c
 		pattrs = mono_metadata_get_param_attrs (m, def, param_count + 1); /*Must be + 1 since signature's param count doesn't account for the return value */
 
 	method = mono_metadata_signature_alloc (m, param_count);
-	method->hasthis = hasthis;
-	method->explicit_this = explicit_this;
-	method->call_convention = call_convention;
-	method->generic_param_count = gen_param_count;
+	mono_method_signature_set_hasthis(method, hasthis);
+	mono_method_signature_set_explicit_this(method, explicit_this);
+	mono_method_signature_set_call_convention(method, call_convention);
+	mono_method_signature_set_generic_param_count(method, gen_param_count);
 
 	if (call_convention != 0xa) {
 		method->ret = mono_metadata_parse_type_full (m, container, MONO_PARSE_RET, pattrs ? pattrs [0] : 0, ptr, &ptr);
@@ -1928,7 +1931,7 @@ mono_metadata_parse_method_signature_full (MonoImage *m, MonoGenericContainer *c
 
 	for (i = 0; i < method->param_count; ++i) {
 		if (*ptr == MONO_TYPE_SENTINEL) {
-			if (method->call_convention != MONO_CALL_VARARG || def) {
+			if (mono_method_signature_get_call_convention(method) != MONO_CALL_VARARG || def) {
 				g_warning ("found sentinel for methoddef or no vararg method 0x%08x on image %s", def, m->name);
 				g_free (pattrs);
 				return NULL;
@@ -1952,12 +1955,12 @@ mono_metadata_parse_method_signature_full (MonoImage *m, MonoGenericContainer *c
 	}
 
 	/* The sentinel could be missing if the caller does not pass any additional arguments */
-	if (!def && method->call_convention == MONO_CALL_VARARG && method->sentinelpos < 0)
+	if (!def && mono_method_signature_get_call_convention(method) == MONO_CALL_VARARG && method->sentinelpos < 0)
 		method->sentinelpos = method->param_count;
 
-	method->has_type_parameters = is_open;
+	mono_method_signature_set_has_type_parameters(method, is_open);
 
-	if (def && (method->call_convention == MONO_CALL_VARARG))
+	if (def && (mono_method_signature_get_call_convention(method) == MONO_CALL_VARARG))
 		method->sentinelpos = method->param_count;
 
 	g_free (pattrs);
@@ -2036,7 +2039,7 @@ inflated_method_equal (gconstpointer a, gconstpointer b)
 	const MonoMethodInflated *mb = b;
 	if (ma->declaring != mb->declaring)
 		return FALSE;
-	if (ma->method.method.is_mb_open != mb->method.method.is_mb_open)
+	if (mono_method_get_is_mb_open(&ma->method.method) != mono_method_get_is_mb_open(&mb->method.method))
 		return FALSE;
 	return mono_metadata_generic_context_equal (&ma->context, &mb->context);
 }
@@ -2573,19 +2576,19 @@ mono_metadata_inflate_generic_inst (MonoGenericInst *ginst, MonoGenericContext *
 
 	mono_error_init (error);
 
-	if (!ginst->is_open)
+	if (!mono_generic_inst_get_is_open(ginst))
 		return ginst;
 
-	type_argv = g_new0 (MonoType*, ginst->type_argc);
+	type_argv = g_new0 (MonoType*, mono_generic_inst_get_type_argc(ginst));
 
-	for (i = 0; i < ginst->type_argc; i++) {
+	for (i = 0; i < mono_generic_inst_get_type_argc(ginst); i++) {
 		type_argv [i] = mono_class_inflate_generic_type_checked (ginst->type_argv [i], context, error);
 		if (!mono_error_ok (error))
 			goto cleanup;
 		++count;
 	}
 
-	nginst = mono_metadata_get_generic_inst (ginst->type_argc, type_argv);
+	nginst = mono_metadata_get_generic_inst (mono_generic_inst_get_type_argc(ginst), type_argv);
 
 cleanup:
 	for (i = 0; i < count; i++)
@@ -5525,7 +5528,7 @@ mono_type_is_byref (MonoType *type)
 int
 mono_type_get_type (MonoType *type)
 {
-	return type->type;
+	return mono_type_get_type_code(type);
 }
 
 /**
@@ -5540,7 +5543,7 @@ mono_type_get_type (MonoType *type)
 MonoMethodSignature*
 mono_type_get_signature (MonoType *type)
 {
-	g_assert (type->type == MONO_TYPE_FNPTR);
+	g_assert (mono_type_get_type(type) == MONO_TYPE_FNPTR);
 	return type->data.method;
 }
 

@@ -121,7 +121,7 @@ create_exception_two_strings (MonoClass *klass, MonoString *a1, MonoString *a2)
 		if (sig->param_count != count)
 			continue;
 
-		if (sig->params [0]->type != MONO_TYPE_STRING)
+		if (mono_type_get_type(sig->params [0]) != MONO_TYPE_STRING)
 			continue;
 		if (count == 2 && sig->params [1]->type != MONO_TYPE_STRING)
 			continue;
