@@ -8,6 +8,97 @@
 #include <mono/metadata/row-indexes.h>
 #include <mono/metadata/image.h>
 
+/*
+ * Portable access to PowerPC big-endian bitfield storage.
+ *
+ * Bitfield runs in the PowerPC ABI do not all consume a full 32-bit word:
+ * short runs can occupy one or three bytes, and following ordinary members
+ * can use the remaining space. Keep the exact byte footprint of each run.
+ * These helpers assemble those bytes as a big-endian integer before doing
+ * bit operations, then write the result back in big-endian byte order. This
+ * is the byte-array equivalent of GUINT32_FROM_BE / GUINT32_TO_BE for a
+ * four-byte run, while also handling the one- and three-byte runs.
+ */
+#ifndef MONO_BE_BITFIELD_ACCESSORS_DEFINED
+#define MONO_BE_BITFIELD_ACCESSORS_DEFINED
+
+static inline guint32
+mono_be_bitfield_load (const guint8 *storage, guint size)
+{
+    guint32 value = 0;
+    guint i;
+
+    for (i = 0; i < size; ++i)
+        value = (value << 8) | storage[i];
+
+    return value;
+}
+
+static inline void
+mono_be_bitfield_store (guint8 *storage, guint size, guint32 value)
+{
+    guint i;
+
+    for (i = size; i > 0; --i) {
+        storage[i - 1] = (guint8)(value & 0xff);
+        value >>= 8;
+    }
+}
+
+static inline guint32
+mono_be_bitfield_get (const guint8 *storage, guint size, guint shift, guint width)
+{
+    guint32 mask = width == 32 ? 0xffffffffu : (((guint32)1u << width) - 1u);
+    return (mono_be_bitfield_load (storage, size) >> shift) & mask;
+}
+
+static inline void
+mono_be_bitfield_set (guint8 *storage, guint size, guint shift, guint width, guint32 value)
+{
+    guint32 mask = width == 32 ? 0xffffffffu : (((guint32)1u << width) - 1u);
+    guint32 word = mono_be_bitfield_load (storage, size);
+    guint32 shifted_mask = mask << shift;
+
+    word = (word & ~shifted_mask) | ((value & mask) << shift);
+    mono_be_bitfield_store (storage, size, word);
+}
+
+static inline gint32
+mono_be_bitfield_get_signed (const guint8 *storage, guint size, guint shift, guint width)
+{
+    guint32 value = mono_be_bitfield_get (storage, size, shift, width);
+    guint32 sign_bit = (guint32)1u << (width - 1);
+
+    if (value & sign_bit) {
+        guint32 magnitude = ((guint32)1u << width) - value;
+        return -(gint32)magnitude;
+    }
+
+    return (gint32)value;
+}
+
+#define MONO_DEFINE_BE_BITFIELD_ACCESSORS(struct_type, prefix, storage_member, field, value_type, shift, width) \
+    static inline value_type prefix##_get_##field (const struct_type *instance) \
+    { \
+        return (value_type)mono_be_bitfield_get (instance->storage_member, sizeof (instance->storage_member), shift, width); \
+    } \
+    static inline void prefix##_set_##field (struct_type *instance, value_type value) \
+    { \
+        mono_be_bitfield_set (instance->storage_member, sizeof (instance->storage_member), shift, width, (guint32)value); \
+    }
+
+#define MONO_DEFINE_BE_SIGNED_BITFIELD_ACCESSORS(struct_type, prefix, storage_member, field, value_type, shift, width) \
+    static inline value_type prefix##_get_##field (const struct_type *instance) \
+    { \
+        return (value_type)mono_be_bitfield_get_signed (instance->storage_member, sizeof (instance->storage_member), shift, width); \
+    } \
+    static inline void prefix##_set_##field (struct_type *instance, value_type value) \
+    { \
+        mono_be_bitfield_set (instance->storage_member, sizeof (instance->storage_member), shift, width, (guint32)value); \
+    }
+
+#endif /* MONO_BE_BITFIELD_ACCESSORS_DEFINED */
+
 G_BEGIN_DECLS
 
 /*
@@ -23,23 +114,23 @@ G_BEGIN_DECLS
 #endif
 #endif
 
-#define MONO_TYPE_ISSTRUCT(t) (!(t)->byref && (((t)->type == MONO_TYPE_VALUETYPE && \
-	!(t)->data.klass->enumtype) || ((t)->type == MONO_TYPE_TYPEDBYREF) || \
-	(((t)->type == MONO_TYPE_GENERICINST) && mono_metadata_generic_class_is_valuetype ((t)->data.generic_class) && !(t)->data.generic_class->container_class->enumtype)))
+#define MONO_TYPE_ISSTRUCT(t) (!mono_type_get_byref (t) && (((mono_type_get_type_code (t) == MONO_TYPE_VALUETYPE) && \
+    !mono_class_get_enumtype ((t)->data.klass)) || (mono_type_get_type_code (t) == MONO_TYPE_TYPEDBYREF) || \
+    ((mono_type_get_type_code (t) == MONO_TYPE_GENERICINST) && mono_metadata_generic_class_is_valuetype ((t)->data.generic_class) && \
+    !mono_class_get_enumtype ((t)->data.generic_class->container_class))))
 
-#define MONO_TYPE_IS_VOID(t) ((t) && ((t)->type == MONO_TYPE_VOID) && !(t)->byref)
-#define MONO_TYPE_IS_POINTER(t) ((t) && (((t)->byref || ((t)->type == MONO_TYPE_I) || (t)->type == MONO_TYPE_STRING) || ((t)->type == MONO_TYPE_SZARRAY) || ((t)->type == MONO_TYPE_CLASS) || ((t)->type == MONO_TYPE_CLASS) || ((t)->type == MONO_TYPE_OBJECT) || ((t)->type == MONO_TYPE_ARRAY) || ((t)->type == MONO_TYPE_PTR)))
+#define MONO_TYPE_IS_VOID(t) ((t) && (mono_type_get_type_code (t) == MONO_TYPE_VOID) && !mono_type_get_byref (t))
+#define MONO_TYPE_IS_POINTER(t) ((t) && (mono_type_get_byref (t) || (mono_type_get_type_code (t) == MONO_TYPE_I) || \
+    (mono_type_get_type_code (t) == MONO_TYPE_STRING) || (mono_type_get_type_code (t) == MONO_TYPE_SZARRAY) || \
+    (mono_type_get_type_code (t) == MONO_TYPE_CLASS) || (mono_type_get_type_code (t) == MONO_TYPE_OBJECT) || \
+    (mono_type_get_type_code (t) == MONO_TYPE_ARRAY) || (mono_type_get_type_code (t) == MONO_TYPE_PTR)))
 
-#define MONO_TYPE_IS_REFERENCE(t) ((t) &&					\
-				   ((((t)->type == MONO_TYPE_STRING) ||		\
-				     ((t)->type == MONO_TYPE_SZARRAY) ||	\
-				     ((t)->type == MONO_TYPE_CLASS) ||		\
-				     ((t)->type == MONO_TYPE_OBJECT) ||		\
-				     ((t)->type == MONO_TYPE_ARRAY)) ||		\
-				    (((t)->type == MONO_TYPE_GENERICINST) &&	\
-				     !mono_metadata_generic_class_is_valuetype ((t)->data.generic_class))))
+#define MONO_TYPE_IS_REFERENCE(t) ((t) && (((mono_type_get_type_code (t) == MONO_TYPE_STRING) || \
+    (mono_type_get_type_code (t) == MONO_TYPE_SZARRAY) || (mono_type_get_type_code (t) == MONO_TYPE_CLASS) || \
+    (mono_type_get_type_code (t) == MONO_TYPE_OBJECT) || (mono_type_get_type_code (t) == MONO_TYPE_ARRAY)) || \
+    ((mono_type_get_type_code (t) == MONO_TYPE_GENERICINST) && !mono_metadata_generic_class_is_valuetype ((t)->data.generic_class))))
 
-#define MONO_CLASS_IS_INTERFACE(c) ((c->flags & TYPE_ATTRIBUTE_INTERFACE) || (c->byval_arg.type == MONO_TYPE_VAR) || (c->byval_arg.type == MONO_TYPE_MVAR))
+#define MONO_CLASS_IS_INTERFACE(c) (((c)->flags & TYPE_ATTRIBUTE_INTERFACE) || (mono_type_get_type_code (&(c)->byval_arg) == MONO_TYPE_VAR) || (mono_type_get_type_code (&(c)->byval_arg) == MONO_TYPE_MVAR))
 
 #define MONO_CLASS_IS_IMPORT(c) ((c->flags & TYPE_ATTRIBUTE_IMPORT))
 
@@ -48,177 +139,177 @@ typedef struct _MonoDomain MonoDomain;
 typedef struct _MonoMethod MonoMethod;
 
 typedef enum {
-	MONO_EXCEPTION_CLAUSE_NONE,
-	MONO_EXCEPTION_CLAUSE_FILTER,
-	MONO_EXCEPTION_CLAUSE_FINALLY,
-	MONO_EXCEPTION_CLAUSE_FAULT = 4
+    MONO_EXCEPTION_CLAUSE_NONE,
+    MONO_EXCEPTION_CLAUSE_FILTER,
+    MONO_EXCEPTION_CLAUSE_FINALLY,
+    MONO_EXCEPTION_CLAUSE_FAULT = 4
 } MonoExceptionEnum;
 
 typedef enum {
-	MONO_CALL_DEFAULT,
-	MONO_CALL_C,
-	MONO_CALL_STDCALL,
-	MONO_CALL_THISCALL,
-	MONO_CALL_FASTCALL,
-	MONO_CALL_VARARG
+    MONO_CALL_DEFAULT,
+    MONO_CALL_C,
+    MONO_CALL_STDCALL,
+    MONO_CALL_THISCALL,
+    MONO_CALL_FASTCALL,
+    MONO_CALL_VARARG
 } MonoCallConvention;
 
 /* ECMA lamespec: the old spec had more info... */
 typedef enum {
-	MONO_NATIVE_BOOLEAN = 0x02, /* 4 bytes, 0 is false, != 0 is true */
-	MONO_NATIVE_I1 = 0x03,
-	MONO_NATIVE_U1 = 0x04,
-	MONO_NATIVE_I2 = 0x05,
-	MONO_NATIVE_U2 = 0x06,
-	MONO_NATIVE_I4 = 0x07,
-	MONO_NATIVE_U4 = 0x08,
-	MONO_NATIVE_I8 = 0x09,
-	MONO_NATIVE_U8 = 0x0a,
-	MONO_NATIVE_R4 = 0x0b,
-	MONO_NATIVE_R8 = 0x0c,
-	MONO_NATIVE_CURRENCY = 0x0f,
-	MONO_NATIVE_BSTR = 0x13, /* prefixed length, Unicode */
-	MONO_NATIVE_LPSTR = 0x14, /* ANSI, null terminated */
-	MONO_NATIVE_LPWSTR = 0x15, /* UNICODE, null terminated */
-	MONO_NATIVE_LPTSTR = 0x16, /* plattform dep., null terminated */
-	MONO_NATIVE_BYVALTSTR = 0x17,
-	MONO_NATIVE_IUNKNOWN = 0x19,
-	MONO_NATIVE_IDISPATCH = 0x1a,
-	MONO_NATIVE_STRUCT = 0x1b,
-	MONO_NATIVE_INTERFACE = 0x1c,
-	MONO_NATIVE_SAFEARRAY = 0x1d,
-	MONO_NATIVE_BYVALARRAY = 0x1e,
-	MONO_NATIVE_INT   = 0x1f,
-	MONO_NATIVE_UINT  = 0x20,
-	MONO_NATIVE_VBBYREFSTR  = 0x22,
-	MONO_NATIVE_ANSIBSTR  = 0x23,  /* prefixed length, ANSI */
-	MONO_NATIVE_TBSTR  = 0x24, /* prefixed length, plattform dep. */
-	MONO_NATIVE_VARIANTBOOL  = 0x25,
-	MONO_NATIVE_FUNC  = 0x26,
-	MONO_NATIVE_ASANY = 0x28,
-	MONO_NATIVE_LPARRAY = 0x2a,
-	MONO_NATIVE_LPSTRUCT = 0x2b,
-	MONO_NATIVE_CUSTOM = 0x2c,
-	MONO_NATIVE_ERROR = 0x2d,
-	MONO_NATIVE_MAX = 0x50 /* no info */
+    MONO_NATIVE_BOOLEAN = 0x02, /* 4 bytes, 0 is false, != 0 is true */
+    MONO_NATIVE_I1 = 0x03,
+    MONO_NATIVE_U1 = 0x04,
+    MONO_NATIVE_I2 = 0x05,
+    MONO_NATIVE_U2 = 0x06,
+    MONO_NATIVE_I4 = 0x07,
+    MONO_NATIVE_U4 = 0x08,
+    MONO_NATIVE_I8 = 0x09,
+    MONO_NATIVE_U8 = 0x0a,
+    MONO_NATIVE_R4 = 0x0b,
+    MONO_NATIVE_R8 = 0x0c,
+    MONO_NATIVE_CURRENCY = 0x0f,
+    MONO_NATIVE_BSTR = 0x13, /* prefixed length, Unicode */
+    MONO_NATIVE_LPSTR = 0x14, /* ANSI, null terminated */
+    MONO_NATIVE_LPWSTR = 0x15, /* UNICODE, null terminated */
+    MONO_NATIVE_LPTSTR = 0x16, /* plattform dep., null terminated */
+    MONO_NATIVE_BYVALTSTR = 0x17,
+    MONO_NATIVE_IUNKNOWN = 0x19,
+    MONO_NATIVE_IDISPATCH = 0x1a,
+    MONO_NATIVE_STRUCT = 0x1b,
+    MONO_NATIVE_INTERFACE = 0x1c,
+    MONO_NATIVE_SAFEARRAY = 0x1d,
+    MONO_NATIVE_BYVALARRAY = 0x1e,
+    MONO_NATIVE_INT   = 0x1f,
+    MONO_NATIVE_UINT  = 0x20,
+    MONO_NATIVE_VBBYREFSTR  = 0x22,
+    MONO_NATIVE_ANSIBSTR  = 0x23,  /* prefixed length, ANSI */
+    MONO_NATIVE_TBSTR  = 0x24, /* prefixed length, plattform dep. */
+    MONO_NATIVE_VARIANTBOOL  = 0x25,
+    MONO_NATIVE_FUNC  = 0x26,
+    MONO_NATIVE_ASANY = 0x28,
+    MONO_NATIVE_LPARRAY = 0x2a,
+    MONO_NATIVE_LPSTRUCT = 0x2b,
+    MONO_NATIVE_CUSTOM = 0x2c,
+    MONO_NATIVE_ERROR = 0x2d,
+    MONO_NATIVE_MAX = 0x50 /* no info */
 } MonoMarshalNative;
 
 /* Used only in context of SafeArray */
 typedef enum {
-	MONO_VARIANT_EMPTY = 0x00,
-	MONO_VARIANT_NULL = 0x01,
-	MONO_VARIANT_I2 = 0x02,
-	MONO_VARIANT_I4 = 0x03,
-	MONO_VARIANT_R4 = 0x04,
-	MONO_VARIANT_R8 = 0x05,
-	MONO_VARIANT_CY = 0x06,
-	MONO_VARIANT_DATE = 0x07,
-	MONO_VARIANT_BSTR = 0x08,
-	MONO_VARIANT_DISPATCH = 0x09,
-	MONO_VARIANT_ERROR = 0x0a,
-	MONO_VARIANT_BOOL = 0x0b,
-	MONO_VARIANT_VARIANT = 0x0c,
-	MONO_VARIANT_UNKNOWN = 0x0d,
-	MONO_VARIANT_DECIMAL = 0x0e,
-	MONO_VARIANT_I1 = 0x10,
-	MONO_VARIANT_UI1 = 0x11,
-	MONO_VARIANT_UI2 = 0x12,
-	MONO_VARIANT_UI4 = 0x13,
-	MONO_VARIANT_I8 = 0x14,
-	MONO_VARIANT_UI8 = 0x15,
-	MONO_VARIANT_INT = 0x16,
-	MONO_VARIANT_UINT = 0x17,
-	MONO_VARIANT_VOID = 0x18,
-	MONO_VARIANT_HRESULT = 0x19,
-	MONO_VARIANT_PTR = 0x1a,
-	MONO_VARIANT_SAFEARRAY = 0x1b,
-	MONO_VARIANT_CARRAY = 0x1c,
-	MONO_VARIANT_USERDEFINED = 0x1d,
-	MONO_VARIANT_LPSTR = 0x1e,
-	MONO_VARIANT_LPWSTR = 0x1f,
-	MONO_VARIANT_RECORD = 0x24,
-	MONO_VARIANT_FILETIME = 0x40,
-	MONO_VARIANT_BLOB = 0x41,
-	MONO_VARIANT_STREAM = 0x42,
-	MONO_VARIANT_STORAGE = 0x43,
-	MONO_VARIANT_STREAMED_OBJECT = 0x44,
-	MONO_VARIANT_STORED_OBJECT = 0x45,
-	MONO_VARIANT_BLOB_OBJECT = 0x46,
-	MONO_VARIANT_CF = 0x47,
-	MONO_VARIANT_CLSID = 0x48,
-	MONO_VARIANT_VECTOR = 0x1000,
-	MONO_VARIANT_ARRAY = 0x2000,
-	MONO_VARIANT_BYREF = 0x4000
+    MONO_VARIANT_EMPTY = 0x00,
+    MONO_VARIANT_NULL = 0x01,
+    MONO_VARIANT_I2 = 0x02,
+    MONO_VARIANT_I4 = 0x03,
+    MONO_VARIANT_R4 = 0x04,
+    MONO_VARIANT_R8 = 0x05,
+    MONO_VARIANT_CY = 0x06,
+    MONO_VARIANT_DATE = 0x07,
+    MONO_VARIANT_BSTR = 0x08,
+    MONO_VARIANT_DISPATCH = 0x09,
+    MONO_VARIANT_ERROR = 0x0a,
+    MONO_VARIANT_BOOL = 0x0b,
+    MONO_VARIANT_VARIANT = 0x0c,
+    MONO_VARIANT_UNKNOWN = 0x0d,
+    MONO_VARIANT_DECIMAL = 0x0e,
+    MONO_VARIANT_I1 = 0x10,
+    MONO_VARIANT_UI1 = 0x11,
+    MONO_VARIANT_UI2 = 0x12,
+    MONO_VARIANT_UI4 = 0x13,
+    MONO_VARIANT_I8 = 0x14,
+    MONO_VARIANT_UI8 = 0x15,
+    MONO_VARIANT_INT = 0x16,
+    MONO_VARIANT_UINT = 0x17,
+    MONO_VARIANT_VOID = 0x18,
+    MONO_VARIANT_HRESULT = 0x19,
+    MONO_VARIANT_PTR = 0x1a,
+    MONO_VARIANT_SAFEARRAY = 0x1b,
+    MONO_VARIANT_CARRAY = 0x1c,
+    MONO_VARIANT_USERDEFINED = 0x1d,
+    MONO_VARIANT_LPSTR = 0x1e,
+    MONO_VARIANT_LPWSTR = 0x1f,
+    MONO_VARIANT_RECORD = 0x24,
+    MONO_VARIANT_FILETIME = 0x40,
+    MONO_VARIANT_BLOB = 0x41,
+    MONO_VARIANT_STREAM = 0x42,
+    MONO_VARIANT_STORAGE = 0x43,
+    MONO_VARIANT_STREAMED_OBJECT = 0x44,
+    MONO_VARIANT_STORED_OBJECT = 0x45,
+    MONO_VARIANT_BLOB_OBJECT = 0x46,
+    MONO_VARIANT_CF = 0x47,
+    MONO_VARIANT_CLSID = 0x48,
+    MONO_VARIANT_VECTOR = 0x1000,
+    MONO_VARIANT_ARRAY = 0x2000,
+    MONO_VARIANT_BYREF = 0x4000
 } MonoMarshalVariant;
 
 typedef enum {
-	MONO_MARSHAL_CONV_NONE,
-	MONO_MARSHAL_CONV_BOOL_VARIANTBOOL,
-	MONO_MARSHAL_CONV_BOOL_I4,
-	MONO_MARSHAL_CONV_STR_BSTR,
-	MONO_MARSHAL_CONV_STR_LPSTR,
-	MONO_MARSHAL_CONV_LPSTR_STR,
-	MONO_MARSHAL_CONV_LPTSTR_STR,
-	MONO_MARSHAL_CONV_STR_LPWSTR,
-	MONO_MARSHAL_CONV_LPWSTR_STR,
-	MONO_MARSHAL_CONV_STR_LPTSTR,
-	MONO_MARSHAL_CONV_STR_ANSIBSTR,
-	MONO_MARSHAL_CONV_STR_TBSTR,
-	MONO_MARSHAL_CONV_STR_BYVALSTR,
-	MONO_MARSHAL_CONV_STR_BYVALWSTR,
-	MONO_MARSHAL_CONV_SB_LPSTR,
-	MONO_MARSHAL_CONV_SB_LPTSTR,
-	MONO_MARSHAL_CONV_SB_LPWSTR,
-	MONO_MARSHAL_CONV_LPSTR_SB,
-	MONO_MARSHAL_CONV_LPTSTR_SB,
-	MONO_MARSHAL_CONV_LPWSTR_SB,
-	MONO_MARSHAL_CONV_ARRAY_BYVALARRAY,
-	MONO_MARSHAL_CONV_ARRAY_BYVALCHARARRAY,
-	MONO_MARSHAL_CONV_ARRAY_SAVEARRAY,
-	MONO_MARSHAL_CONV_ARRAY_LPARRAY,
-	MONO_MARSHAL_FREE_LPARRAY,
-	MONO_MARSHAL_CONV_OBJECT_INTERFACE,
-	MONO_MARSHAL_CONV_OBJECT_IDISPATCH,
-	MONO_MARSHAL_CONV_OBJECT_IUNKNOWN,
-	MONO_MARSHAL_CONV_OBJECT_STRUCT,
-	MONO_MARSHAL_CONV_DEL_FTN,
-	MONO_MARSHAL_CONV_FTN_DEL,
-	MONO_MARSHAL_FREE_ARRAY,
-	MONO_MARSHAL_CONV_BSTR_STR,
-	MONO_MARSHAL_CONV_SAFEHANDLE,
-	MONO_MARSHAL_CONV_HANDLEREF
+    MONO_MARSHAL_CONV_NONE,
+    MONO_MARSHAL_CONV_BOOL_VARIANTBOOL,
+    MONO_MARSHAL_CONV_BOOL_I4,
+    MONO_MARSHAL_CONV_STR_BSTR,
+    MONO_MARSHAL_CONV_STR_LPSTR,
+    MONO_MARSHAL_CONV_LPSTR_STR,
+    MONO_MARSHAL_CONV_LPTSTR_STR,
+    MONO_MARSHAL_CONV_STR_LPWSTR,
+    MONO_MARSHAL_CONV_LPWSTR_STR,
+    MONO_MARSHAL_CONV_STR_LPTSTR,
+    MONO_MARSHAL_CONV_STR_ANSIBSTR,
+    MONO_MARSHAL_CONV_STR_TBSTR,
+    MONO_MARSHAL_CONV_STR_BYVALSTR,
+    MONO_MARSHAL_CONV_STR_BYVALWSTR,
+    MONO_MARSHAL_CONV_SB_LPSTR,
+    MONO_MARSHAL_CONV_SB_LPTSTR,
+    MONO_MARSHAL_CONV_SB_LPWSTR,
+    MONO_MARSHAL_CONV_LPSTR_SB,
+    MONO_MARSHAL_CONV_LPTSTR_SB,
+    MONO_MARSHAL_CONV_LPWSTR_SB,
+    MONO_MARSHAL_CONV_ARRAY_BYVALARRAY,
+    MONO_MARSHAL_CONV_ARRAY_BYVALCHARARRAY,
+    MONO_MARSHAL_CONV_ARRAY_SAVEARRAY,
+    MONO_MARSHAL_CONV_ARRAY_LPARRAY,
+    MONO_MARSHAL_FREE_LPARRAY,
+    MONO_MARSHAL_CONV_OBJECT_INTERFACE,
+    MONO_MARSHAL_CONV_OBJECT_IDISPATCH,
+    MONO_MARSHAL_CONV_OBJECT_IUNKNOWN,
+    MONO_MARSHAL_CONV_OBJECT_STRUCT,
+    MONO_MARSHAL_CONV_DEL_FTN,
+    MONO_MARSHAL_CONV_FTN_DEL,
+    MONO_MARSHAL_FREE_ARRAY,
+    MONO_MARSHAL_CONV_BSTR_STR,
+    MONO_MARSHAL_CONV_SAFEHANDLE,
+    MONO_MARSHAL_CONV_HANDLEREF
 } MonoMarshalConv;
 
 typedef struct {
-	MonoMarshalNative native;
-	union {
-		struct {
-			MonoMarshalNative elem_type;
-			gint32 num_elem; /* -1 if not set */
-			gint16 param_num; /* -1 if not set */
-			gint16 elem_mult; /* -1 if not set */
-		} array_data;
-		struct {
-			char *custom_name;
-			char *cookie;
-		} custom_data;
-		struct {
-			MonoMarshalVariant elem_type;
-			gint32 num_elem;
-		} safearray_data;
-	} data;
+    MonoMarshalNative native;
+    union {
+       struct {
+          MonoMarshalNative elem_type;
+          gint32 num_elem; /* -1 if not set */
+          gint16 param_num; /* -1 if not set */
+          gint16 elem_mult; /* -1 if not set */
+       } array_data;
+       struct {
+          char *custom_name;
+          char *cookie;
+       } custom_data;
+       struct {
+          MonoMarshalVariant elem_type;
+          gint32 num_elem;
+       } safearray_data;
+    } data;
 } MonoMarshalSpec;
 
 void         mono_metadata_init (void);
 
 void         mono_metadata_decode_row (const MonoTableInfo   *t,
-				       int                    idx,
-				       guint32               *res,
-				       int                    res_size);
+                    int                    idx,
+                    guint32               *res,
+                    int                    res_size);
 
-guint32      mono_metadata_decode_row_col (const MonoTableInfo *t, 
-					   int            idx, 
-					   guint          col);
+guint32      mono_metadata_decode_row_col (const MonoTableInfo *t,
+                   int            idx,
+                   guint          col);
 
 /*
  * This macro is used to extract the size of the table encoded in
@@ -236,7 +327,7 @@ int mono_metadata_compute_size (MonoImage   *meta,
  */
 const char    *mono_metadata_locate        (MonoImage *meta, int table, int idx);
 const char    *mono_metadata_locate_token  (MonoImage *meta, guint32 token);
-					   
+
 const char    *mono_metadata_string_heap   (MonoImage *meta, guint32 table_index);
 const char    *mono_metadata_blob_heap     (MonoImage *meta, guint32 table_index);
 const char    *mono_metadata_user_string   (MonoImage *meta, guint32 table_index);
@@ -263,11 +354,11 @@ void mono_metadata_free_marshal_spec (MonoMarshalSpec *spec);
 
 guint32     mono_metadata_implmap_from_method     (MonoImage *meta, guint32 method_idx);
 
-void        mono_metadata_field_info (MonoImage *meta, 
-				      guint32       table_index,
-				      guint32      *offset,
-				      guint32      *rva,
-				      MonoMarshalSpec **marshal_spec);
+void        mono_metadata_field_info (MonoImage *meta,
+                   guint32       table_index,
+                   guint32      *offset,
+                   guint32      *rva,
+                   MonoMarshalSpec **marshal_spec);
 
 guint32     mono_metadata_get_constant_index (MonoImage *meta, guint32 token, guint32 hint);
 
@@ -284,22 +375,22 @@ guint32 mono_metadata_decode_blob_size (const char            *ptr,
 void mono_metadata_encode_value (guint32 value, char *bug, char **endbuf);
 
 #define MONO_OFFSET_IN_CLAUSE(clause,offset) \
-	((clause)->try_offset <= (offset) && (offset) < ((clause)->try_offset + (clause)->try_len))
+    ((clause)->try_offset <= (offset) && (offset) < ((clause)->try_offset + (clause)->try_len))
 #define MONO_OFFSET_IN_HANDLER(clause,offset) \
-	((clause)->handler_offset <= (offset) && (offset) < ((clause)->handler_offset + (clause)->handler_len))
+    ((clause)->handler_offset <= (offset) && (offset) < ((clause)->handler_offset + (clause)->handler_len))
 #define MONO_OFFSET_IN_FILTER(clause,offset) \
-	((clause)->flags == MONO_EXCEPTION_CLAUSE_FILTER && (clause)->data.filter_offset <= (offset) && (offset) < ((clause)->handler_offset))
+    ((clause)->flags == MONO_EXCEPTION_CLAUSE_FILTER && (clause)->data.filter_offset <= (offset) && (offset) < ((clause)->handler_offset))
 
 typedef struct {
-	guint32 flags;
-	guint32 try_offset;
-	guint32 try_len;
-	guint32 handler_offset;
-	guint32 handler_len;
-	union {
-		guint32 filter_offset;
-		MonoClass *catch_class;
-	} data;
+    guint32 flags;
+    guint32 try_offset;
+    guint32 try_len;
+    guint32 handler_offset;
+    guint32 handler_len;
+    union {
+       guint32 filter_offset;
+       MonoClass *catch_class;
+    } data;
 } MonoExceptionClause;
 
 typedef struct _MonoType MonoType;
@@ -316,38 +407,45 @@ typedef struct _MonoMethodSignature MonoMethodSignature;
 typedef struct invalid_name MonoGenericMethod;
 
 typedef struct {
-	unsigned int required : 1;
-	unsigned int token    : 31;
+    union {
+        guint32 _bitfield_alignment; /* preserve the original 32-bit alignment */
+        guint8 _bitfield_data[4];   /* required and token, in big-endian order */
+    };
 } MonoCustomMod;
 
+MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoCustomMod, mono_custom_mod, _bitfield_data, required, guint32, 31, 1)
+MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoCustomMod, mono_custom_mod, _bitfield_data, token, guint32, 0, 31)
+
 struct _MonoArrayType {
-	MonoClass *eklass;
-	guint8 rank;
-	guint8 numsizes;
-	guint8 numlobounds;
-	int *sizes;
-	int *lobounds;
+    MonoClass *eklass;
+    guint8 rank;
+    guint8 numsizes;
+    guint8 numlobounds;
+    int *sizes;
+    int *lobounds;
 };
 
 /* This structure is internal to the runtime: use the mono_type*
  * accessors below, because it will soon ago away from the public header file.
  */
 struct _MonoType {
-	union {
-		MonoClass *klass; /* for VALUETYPE and CLASS */
-		MonoType *type;   /* for PTR */
-		MonoArrayType *array; /* for ARRAY */
-		MonoMethodSignature *method;
-		MonoGenericParam *generic_param; /* for VAR and MVAR */
-		MonoGenericClass *generic_class; /* for GENERICINST */
-	} data;
-	unsigned int attrs    : 16; /* param attributes or field flags */
-	MonoTypeEnum type     : 8;
-	unsigned int num_mods : 6;  /* max 64 modifiers follow at the end */
-	unsigned int byref    : 1;
-	unsigned int pinned   : 1;  /* valid when included in a local var signature */
-	MonoCustomMod modifiers [MONO_ZERO_LEN_ARRAY]; /* this may grow */
+    union {
+       MonoClass *klass; /* for VALUETYPE and CLASS */
+       MonoType *type;   /* for PTR */
+       MonoArrayType *array; /* for ARRAY */
+       MonoMethodSignature *method;
+       MonoGenericParam *generic_param; /* for VAR and MVAR */
+       MonoGenericClass *generic_class; /* for GENERICINST */
+    } data;
+    guint8 _bitfield_data[4]; /* attrs, type, num_mods, byref, pinned */
+    MonoCustomMod modifiers [MONO_ZERO_LEN_ARRAY]; /* this may grow */
 };
+
+MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoType, mono_type, _bitfield_data, attrs, guint32, 16, 16)
+MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoType, mono_type, _bitfield_data, type_code, MonoTypeEnum, 8, 8)
+MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoType, mono_type, _bitfield_data, num_mods, guint32, 2, 6)
+MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoType, mono_type, _bitfield_data, byref, guint32, 1, 1)
+MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoType, mono_type, _bitfield_data, pinned, guint32, 0, 1)
 
 #define MONO_SIZEOF_TYPE (offsetof (struct _MonoType, modifiers))
 
@@ -356,31 +454,35 @@ struct _MonoType {
  * accessors below, because it will go away from the public header.
  */
 struct _MonoMethodSignature {
-	unsigned int  hasthis : 1;
-	unsigned int  explicit_this   : 1;
-	unsigned int  call_convention : 6;
-	unsigned int  pinvoke   : 1;
-	unsigned int  ref_count : 23;
-	guint16       param_count;
-	gint16        sentinelpos;
-	unsigned int  generic_param_count : 30;
-	unsigned int  is_inflated         : 1;
-	unsigned int  has_type_parameters : 1;
-	MonoType     *ret;
-	MonoType     *params [MONO_ZERO_LEN_ARRAY];
+    guint8 _bitfield_flags0[4]; /* hasthis, explicit_this, call_convention, pinvoke, ref_count */
+    guint16       param_count;
+    gint16        sentinelpos;
+    guint8 _bitfield_flags1[4]; /* generic_param_count, is_inflated, has_type_parameters */
+    MonoType     *ret;
+    MonoType     *params [MONO_ZERO_LEN_ARRAY];
 };
+
+MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoMethodSignature, mono_method_signature, _bitfield_flags0, hasthis, guint32, 31, 1)
+MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoMethodSignature, mono_method_signature, _bitfield_flags0, explicit_this, guint32, 30, 1)
+MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoMethodSignature, mono_method_signature, _bitfield_flags0, call_convention, guint32, 24, 6)
+MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoMethodSignature, mono_method_signature, _bitfield_flags0, pinvoke, guint32, 23, 1)
+MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoMethodSignature, mono_method_signature, _bitfield_flags0, ref_count, guint32, 0, 23)
+
+MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoMethodSignature, mono_method_signature, _bitfield_flags1, generic_param_count, guint32, 2, 30)
+MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoMethodSignature, mono_method_signature, _bitfield_flags1, is_inflated, guint32, 1, 1)
+MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoMethodSignature, mono_method_signature, _bitfield_flags1, has_type_parameters, guint32, 0, 1)
 
 #define MONO_SIZEOF_METHOD_SIGNATURE (sizeof (struct _MonoMethodSignature) - MONO_ZERO_LEN_ARRAY * SIZEOF_VOID_P)
 
 typedef struct _MonoMethodHeader MonoMethodHeader;
 
 typedef enum {
-	MONO_PARSE_TYPE,
-	MONO_PARSE_MOD_TYPE,
-	MONO_PARSE_LOCAL,
-	MONO_PARSE_PARAM,
-	MONO_PARSE_RET,
-	MONO_PARSE_FIELD
+    MONO_PARSE_TYPE,
+    MONO_PARSE_MOD_TYPE,
+    MONO_PARSE_LOCAL,
+    MONO_PARSE_PARAM,
+    MONO_PARSE_RET,
+    MONO_PARSE_FIELD
 } MonoParseTypeMode;
 
 gboolean
@@ -432,35 +534,35 @@ guint32     mono_metadata_parse_typedef_or_ref (MonoImage      *m,
                                                 const char      *ptr,
                                                 const char     **rptr);
 int            mono_metadata_parse_custom_mod  (MonoImage      *m,
-						MonoCustomMod   *dest,
-						const char      *ptr,
-						const char     **rptr);
+                   MonoCustomMod   *dest,
+                   const char      *ptr,
+                   const char     **rptr);
 MonoArrayType *mono_metadata_parse_array       (MonoImage      *m,
-						const char      *ptr,
-						const char     **rptr);
+                   const char      *ptr,
+                   const char     **rptr);
 void           mono_metadata_free_array        (MonoArrayType     *array);
 MonoType      *mono_metadata_parse_type        (MonoImage      *m,
-						MonoParseTypeMode  mode,
-						short              opt_attrs,
-						const char        *ptr,
-						const char       **rptr);
+                   MonoParseTypeMode  mode,
+                   short              opt_attrs,
+                   const char        *ptr,
+                   const char       **rptr);
 MonoType      *mono_metadata_parse_param       (MonoImage      *m,
-						const char      *ptr,
-						const char      **rptr);
+                   const char      *ptr,
+                   const char      **rptr);
 MonoType      *mono_metadata_parse_ret_type    (MonoImage      *m,
-						const char      *ptr,
-						const char      **rptr);
+                   const char      *ptr,
+                   const char      **rptr);
 MonoType      *mono_metadata_parse_field_type  (MonoImage      *m,
-		                                short            field_flags,
-						const char      *ptr,
-						const char      **rptr);
-MonoType      *mono_type_create_from_typespec  (MonoImage        *image, 
-					        guint32           type_spec);
+                                       short            field_flags,
+                   const char      *ptr,
+                   const char      **rptr);
+MonoType      *mono_type_create_from_typespec  (MonoImage        *image,
+                        guint32           type_spec);
 void           mono_metadata_free_type         (MonoType        *type);
-int            mono_type_size                  (MonoType        *type, 
-						int             *alignment);
-int            mono_type_stack_size            (MonoType        *type, 
-						int             *alignment);
+int            mono_type_size                  (MonoType        *type,
+                   int             *alignment);
+int            mono_type_stack_size            (MonoType        *type,
+                   int             *alignment);
 
 gboolean       mono_type_generic_inst_is_valuetype      (MonoType *type);
 gboolean       mono_metadata_generic_class_is_valuetype (MonoGenericClass *gclass);
@@ -474,8 +576,8 @@ MonoMethodSignature  *mono_metadata_signature_alloc (MonoImage *image, guint32 n
 
 MonoMethodSignature  *mono_metadata_signature_dup (MonoMethodSignature *sig);
 
-MonoMethodSignature  *mono_metadata_parse_signature (MonoImage *image, 
-						     guint32    token);
+MonoMethodSignature  *mono_metadata_parse_signature (MonoImage *image,
+                        guint32    token);
 
 MonoMethodSignature  *mono_metadata_parse_method_signature (MonoImage            *m,
                                                             int                    def,
@@ -483,8 +585,8 @@ MonoMethodSignature  *mono_metadata_parse_method_signature (MonoImage           
                                                             const char           **rptr);
 void                  mono_metadata_free_method_signature  (MonoMethodSignature   *method);
 
-gboolean          mono_metadata_signature_equal (MonoMethodSignature *sig1, 
-						 MonoMethodSignature *sig2);
+gboolean          mono_metadata_signature_equal (MonoMethodSignature *sig1,
+                    MonoMethodSignature *sig2);
 
 guint             mono_signature_hash (MonoMethodSignature *sig);
 
@@ -504,9 +606,9 @@ mono_method_header_get_num_clauses (MonoMethodHeader *header);
 int
 mono_method_header_get_clauses (MonoMethodHeader *header, MonoMethod *method, gpointer *iter, MonoExceptionClause *clause);
 
-guint32 
-mono_type_to_unmanaged (MonoType *type, MonoMarshalSpec *mspec, 
-			gboolean as_field, gboolean unicode, MonoMarshalConv *conv);
+guint32
+mono_type_to_unmanaged (MonoType *type, MonoMarshalSpec *mspec,
+          gboolean as_field, gboolean unicode, MonoMarshalConv *conv);
 
 /*
  * Makes a token based on a table and an index
@@ -535,14 +637,15 @@ guint32 mono_metadata_declsec_from_index (MonoImage *meta, guint32 idx);
 guint32 mono_metadata_translate_token_index (MonoImage *image, int table, guint32 idx);
 
 void    mono_metadata_decode_table_row (MonoImage *image, int table,
-				       int                    idx,
-				       guint32               *res,
-				       int                    res_size);
+                    int                    idx,
+                    guint32               *res,
+                    int                    res_size);
 
 guint32      mono_metadata_decode_table_row_col (MonoImage *image, int table,
-					   int            idx, 
-					   guint          col);
+                   int            idx,
+                   guint          col);
 
 G_END_DECLS
 
 #endif /* __MONO_METADATA_H__ */
+
