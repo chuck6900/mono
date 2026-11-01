@@ -1,8 +1,8 @@
 if(PLATFORM_WIN32)
-###win32_sources = \
-###	console-win32.c
+set(win32_sources
+        console-win32.c)
 
-###platform_sources = $(win32_sources)
+set(platform_sources ${win32_sources})
 
 #### Use -m here. This will use / as directory separator (C:/WINNT).
 #### The files that use MONO_ASSEMBLIES and/or MONO_CFG_DIR replace the
@@ -170,6 +170,8 @@ set(libmonoruntime_la_SOURCES
 	threadpool-internals.h
 	verify.c	
 	verify-internals.h
+    ../../unity/unity_utils.c
+    mono-basic-block.c
 	wrapper-types.h)
 
 set(libmonoruntime_static_la_SOURCES ${libmonoruntime_la_SOURCES})

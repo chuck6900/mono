@@ -219,6 +219,8 @@ static void process_module_stringtable (MonoObject *filever, gpointer data,
 				    lang_lo, SFI_SPECIALBUILD);
 }
 
+#pragma comment(lib, "Version.lib")
+
 static void process_get_fileversion (MonoObject *filever, gunichar2 *filename)
 {
 	DWORD verinfohandle;

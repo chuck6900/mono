@@ -8,6 +8,8 @@
  * Copyright 2004-2009 Novell, Inc (http://www.novell.com)
  */
 #include <config.h>
+
+#include "mini/mini.h"
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
 #endif
@@ -1065,7 +1067,7 @@ mono_method_get_context_general (MonoMethod *method, gboolean uninflated)
 		return NULL;
 	if (method->is_generic)
 		return &(mono_method_get_generic_container (method)->context);
-	if (method->klass->generic_container)
+	if (fix(method->klass->generic_container))
 		return &method->klass->generic_container->context;
 	return NULL;
 }
@@ -1098,7 +1100,7 @@ mono_method_get_generic_container (MonoMethod *method)
 	if (!method->is_generic)
 		return NULL;
 
-	container = mono_image_property_lookup (method->klass->image, method, MONO_METHOD_PROP_GENERIC_CONTAINER);
+	container = mono_image_property_lookup (fix(method->klass->image), method, MONO_METHOD_PROP_GENERIC_CONTAINER);
 	g_assert (container);
 
 	return container;

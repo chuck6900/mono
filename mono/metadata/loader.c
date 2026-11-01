@@ -43,6 +43,8 @@
 #include <mono/utils/mono-membar.h>
 #include <mono/utils/mono-counters.h>
 
+#include "mini/mini.h"
+
 MonoDefaults mono_defaults;
 
 /*
@@ -52,7 +54,7 @@ MonoDefaults mono_defaults;
  * See domain-internals.h for locking policy in combination with the
  * domain lock.
  */
-static CRITICAL_SECTION loader_mutex;
+static CRITICAL_SECTION* loader_mutex;
 
 /* Statistics */
 static guint32 inflated_signatures_size;
@@ -75,7 +77,8 @@ mono_loader_init ()
 	static gboolean inited;
 
 	if (!inited) {
-		InitializeCriticalSection (&loader_mutex);
+	    loader_mutex = malloc(sizeof(CRITICAL_SECTION));
+		InitializeCriticalSection (loader_mutex);
 
 		loader_error_thread_id = TlsAlloc ();
 		loader_lock_nest_id = TlsAlloc ();
@@ -2123,9 +2126,13 @@ mono_method_signature (MonoMethod *m)
 	MonoMethodSignature *signature = NULL;
 	guint32 sig_offset;
 
-	/* We need memory barriers below because of the double-checked locking pattern */ 
+	/* We need memory barriers below because of the double-checked locking pattern */
 
-	if (m->signature)
+    fix_v(m->iflags);
+    fix_v(m->flags);
+    fix_v(m->token);
+
+	if (fix(m->signature))
 		return m->signature;
 
 	mono_loader_lock ();
@@ -2138,8 +2145,9 @@ mono_method_signature (MonoMethod *m)
 	if (m->is_inflated) {
 		MonoMethodInflated *imethod = (MonoMethodInflated *) m;
 		/* the lock is recursive */
-		signature = mono_method_signature (imethod->declaring);
-		signature = inflate_generic_signature (imethod->declaring->klass->image, signature, mono_method_get_context (m));
+		signature = mono_method_signature (fix(imethod->declaring));
+	    fix(imethod->declaring->klass);
+		signature = inflate_generic_signature (fix(imethod->declaring->klass->image), signature, mono_method_get_context (m));
 
 		inflated_signatures_size += mono_metadata_signature_size (signature);
 
@@ -2151,7 +2159,7 @@ mono_method_signature (MonoMethod *m)
 
 	g_assert (mono_metadata_token_table (m->token) == MONO_TABLE_METHOD);
 	idx = mono_metadata_token_index (m->token);
-	img = m->klass->image;
+	img = fix(m->klass->image);
 
 	sig = mono_metadata_blob_heap (img, sig_offset = mono_metadata_decode_row_col (&img->tables [MONO_TABLE_METHOD], idx - 1, MONO_METHOD_SIGNATURE));
 
@@ -2159,6 +2167,7 @@ mono_method_signature (MonoMethod *m)
 	container = mono_method_get_generic_container (m);
 	if (!container)
 		container = m->klass->generic_container;
+    fix(container);
 
 	/* Generic signatures depend on the container so they cannot be cached */
 	/* icall/pinvoke signatures cannot be cached cause we modify them below */
@@ -2169,7 +2178,7 @@ mono_method_signature (MonoMethod *m)
 		can_cache_signature = FALSE;
 
 	if (can_cache_signature)
-		signature = g_hash_table_lookup (img->method_signatures, sig);
+		signature = g_hash_table_lookup (fix(img->method_signatures), sig);
 
 	if (!signature) {
 		const char *sig_body;
@@ -2188,7 +2197,7 @@ mono_method_signature (MonoMethod *m)
 		}
 
 		if (can_cache_signature)
-			g_hash_table_insert (img->method_signatures, (gpointer)sig, signature);
+			g_hash_table_insert (fix(img->method_signatures), (gpointer)sig, signature);
 	}
 
 	/* Verify metadata consistency */

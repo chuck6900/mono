@@ -22,6 +22,8 @@
  *     used for handling catch clauses with open types, not a very common use case.
  */
 
+#include <corecrt_io.h>
+
 #include "config.h"
 #include <sys/types.h>
 #ifdef HAVE_UNISTD_H
@@ -2890,7 +2892,7 @@ emit_method_code (MonoAotCompile *acfg, MonoCompile *cfg)
 
 	if (acfg->aot_opts.write_symbols) {
 		emit_symbol_size (acfg, debug_sym, ".");
-		g_free (debug_sym);
+		//g_free (debug_sym);
 	}
 
 	sprintf (symbol, "%sme_%x", acfg->temp_prefix, method_index);
@@ -3460,7 +3462,7 @@ emit_plt (MonoAotCompile *acfg)
 				char *s = get_debug_sym (ji->data.method, "", cache);
 					
 				debug_sym = g_strdup_printf ("plt__icall_native_%s", s);
-				g_free (s);
+				//g_free (s);
 				break;
 			}
 			case MONO_PATCH_INFO_JIT_ICALL_ADDR:
@@ -3483,7 +3485,7 @@ emit_plt (MonoAotCompile *acfg)
 
 		if (debug_sym) {
 			emit_symbol_size (acfg, debug_sym, ".");
-			g_free (debug_sym);
+			//g_free (debug_sym);
 		}
 	}
 
@@ -5588,7 +5590,7 @@ compile_asm (MonoAotCompile *acfg)
 	} else {
 		objfile = g_strdup_printf ("%s.o", acfg->tmpfname);
 	}
-	command = g_strdup_printf ("%sas %s %s -o %s", tool_prefix, AS_OPTIONS, acfg->tmpfname, objfile);
+	command = g_strdup_printf ("cmd /c \"%sclang %s -x assembler -c %s -o %s\"", tool_prefix, AS_OPTIONS, acfg->tmpfname, objfile);
 	printf ("Executing the native assembler: %s\n", command);
 	if (system (command) != 0) {
 		g_free (command);
@@ -5617,7 +5619,9 @@ compile_asm (MonoAotCompile *acfg)
 #elif defined(__ppc__) && defined(__MACH__)
 	command = g_strdup_printf ("gcc -dynamiclib -o %s %s.o", tmp_outfile_name, acfg->tmpfname);
 #elif defined(PLATFORM_WIN32)
-	command = g_strdup_printf ("gcc -shared --dll -mno-cygwin -o %s %s.o", tmp_outfile_name, acfg->tmpfname);
+	//command = g_strdup_printf ("gcc -shared --dll -mno-cygwin -o %s %s.o", tmp_outfile_name, acfg->tmpfname);
+	//command = g_strdup_printf ("gcc -shared --dll -o %s %s.o", tmp_outfile_name, acfg->tmpfname);
+    command = g_strdup_printf ("clang -m32 -o %s %s.o -Wl,/ALIGN:8192,/NOENTRY,/DLL", tmp_outfile_name, acfg->tmpfname);
 #else
 	command = g_strdup_printf ("%sld %s -shared -o %s %s.o", tool_prefix, LD_OPTIONS, tmp_outfile_name, acfg->tmpfname);
 #endif
@@ -5868,8 +5872,11 @@ mono_compile_assembly (MonoAssembly *ass, guint32 opts, const char *aot_options)
 				acfg->tmpfname = g_strdup_printf ("%s.s", acfg->image->name);
 			acfg->fp = fopen (acfg->tmpfname, acfg->aot_opts.lf_eol ? "w+b" : "w+");
 		} else {
-			int i = g_file_open_tmp ("mono_aot_XXXXXX", &acfg->tmpfname, NULL);
-			acfg->fp = fdopen (i, acfg->aot_opts.lf_eol ? "w+b" : "w+");
+		    GError* err = NULL;
+			int i = g_file_open_tmp ("mono_aot_XXXXXX", &acfg->tmpfname, &err);
+		    int fd = _open_osfhandle(i, _O_RDONLY);
+		    //acfg->fp  = _fdopen(fd, acfg->aot_opts.lf_eol ? "w+b" : "w+");
+			acfg->fp = fopen (acfg->tmpfname, acfg->aot_opts.lf_eol ? "w+b" : "w+");
 		}
 		g_assert (acfg->fp);
 

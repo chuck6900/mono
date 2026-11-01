@@ -14,6 +14,8 @@
 #include "mono/metadata/class-internals.h"
 #include "mono/metadata/mono-endian.h"
 #include "mono/metadata/debug-helpers.h"
+
+#include "mini/mini.h"
 #include "mono/metadata/tabledefs.h"
 #include "mono/metadata/appdomain.h"
 
@@ -78,12 +80,12 @@ append_class_name (GString *res, MonoClass *class, gboolean include_namespace)
 		return;
 	}
 	if (class->nested_in) {
-		append_class_name (res, class->nested_in, include_namespace);
+		append_class_name (res, fix(class->nested_in), include_namespace);
 		g_string_append_c (res, '/');
 	}
-	if (include_namespace && *(class->name_space))
-		g_string_append_printf (res, "%s.", class->name_space);
-	g_string_append_printf (res, "%s", class->name);
+	if (include_namespace && *class->name_space)
+		g_string_append_printf (res, "%s.", fix(class->name_space));
+	g_string_append_printf (res, "%s", fix(class->name));
 }
 
 static MonoClass*
@@ -158,37 +160,50 @@ mono_type_get_desc (GString *res, MonoType *type, gboolean include_namespace)
 		g_string_append_c (res, '*');
 		break;
 	case MONO_TYPE_ARRAY:
+	    fix(type->data.array);
+	    fix(type->data.array->eklass);
 		mono_type_get_desc (res, &type->data.array->eklass->byval_arg, include_namespace);
 		g_string_append_printf (res, "[%d]", type->data.array->rank);
 		break;
 	case MONO_TYPE_SZARRAY:
+	    fix(type->data.klass);
 		mono_type_get_desc (res, &type->data.klass->byval_arg, include_namespace);
 		g_string_append (res, "[]");
 		break;
 	case MONO_TYPE_CLASS:
 	case MONO_TYPE_VALUETYPE:
-		append_class_name (res, type->data.klass, include_namespace);
+		append_class_name (res, fix(type->data.klass), include_namespace);
 		break;
 	case MONO_TYPE_GENERICINST: {
 		MonoGenericContext *context;
 
+	    fix(type->data.generic_class);
+	    fix(type->data.generic_class->container_class);
 		mono_type_get_desc (res, &type->data.generic_class->container_class->byval_arg, include_namespace);
 		g_string_append (res, "<");
 		context = &type->data.generic_class->context;
-		if (context->class_inst) {
-			for (i = 0; i < context->class_inst->type_argc; ++i) {
+		if (fix(context->class_inst)) {
+
+		    int argc = context->class_inst->type_argc;
+		    fix_v(argc);
+
+			for (i = 0; i < argc; ++i) {
 				if (i > 0)
 					g_string_append (res, ", ");
-				mono_type_get_desc (res, context->class_inst->type_argv [i], include_namespace);
+				mono_type_get_desc (res, fix(context->class_inst->type_argv [i]), include_namespace);
 			}
 		}
-		if (context->method_inst) {
-			if (context->class_inst)
+		if (fix(context->method_inst)) {
+			if (fix(context->class_inst))
 					g_string_append (res, "; ");
-			for (i = 0; i < context->method_inst->type_argc; ++i) {
+
+		    int argc = context->class_inst->type_argc;
+		    fix_v(argc);
+
+			for (i = 0; i < argc; ++i) {
 				if (i > 0)
 					g_string_append (res, ", ");
-				mono_type_get_desc (res, context->method_inst->type_argv [i], include_namespace);
+				mono_type_get_desc (res, fix(context->method_inst->type_argv [i]), include_namespace);
 			}
 		}
 		g_string_append (res, ">");
@@ -235,10 +250,10 @@ mono_signature_get_desc (MonoMethodSignature *sig, gboolean include_namespace)
 
 	res = g_string_new ("");
 
-	for (i = 0; i < sig->param_count; ++i) {
+	for (i = 0; i < fix_v(sig->param_count); ++i) {
 		if (i > 0)
 			g_string_append_c (res, ',');
-		mono_type_get_desc (res, sig->params [i], include_namespace);
+		mono_type_get_desc (res, fix(sig->params [i]), include_namespace);
 	}
 	result = res->str;
 	g_string_free (res, FALSE);
@@ -253,7 +268,7 @@ ginst_get_desc (GString *str, MonoGenericInst *ginst)
 	for (i = 0; i < ginst->type_argc; ++i) {
 		if (i > 0)
 			g_string_append (str, ", ");
-		mono_type_get_desc (str, ginst->type_argv [i], TRUE);
+		mono_type_get_desc (str, fix(ginst->type_argv [i]), TRUE);
 	}
 }
 
@@ -745,10 +760,11 @@ mono_method_full_name (MonoMethod *method, gboolean signature)
 {
 	char *res;
 	char wrapper [64];
+    fix(method->klass);
 	char *klass_desc = mono_type_full_name (&method->klass->byval_arg);
 	char *inst_desc = NULL;
 
-	if (method->is_inflated && ((MonoMethodInflated*)method)->context.method_inst) {
+	if (method->is_inflated && fix(((MonoMethodInflated*)method)->context.method_inst)) {
 		GString *str = g_string_new ("");
 		g_string_append (str, "<");
 		ginst_get_desc (str, ((MonoMethodInflated*)method)->context.method_inst);
@@ -761,7 +777,7 @@ mono_method_full_name (MonoMethod *method, gboolean signature)
 
 		GString *str = g_string_new ("");
 		g_string_append (str, "<");
-		ginst_get_desc (str, container->context.method_inst);
+		ginst_get_desc (str, fix(container->context.method_inst));
 		g_string_append (str, ">");
 
 		inst_desc = str->str;
@@ -781,11 +797,11 @@ mono_method_full_name (MonoMethod *method, gboolean signature)
 		else
 			strcpy (wrapper, "");
 		res = g_strdup_printf ("%s%s:%s%s (%s)", wrapper, klass_desc, 
-							   method->name, inst_desc ? inst_desc : "", tmpsig);
+							   fix(method->name), inst_desc ? inst_desc : "", tmpsig);
 		g_free (tmpsig);
 	} else {
 		res = g_strdup_printf ("%s%s:%s%s", wrapper, klass_desc,
-							   method->name, inst_desc ? inst_desc : "");
+							   fix(method->name), inst_desc ? inst_desc : "");
 	}
 
 	g_free (klass_desc);

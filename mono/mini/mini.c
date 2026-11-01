@@ -59,7 +59,7 @@
 #include <string.h>
 #include <ctype.h>
 #include "trace.h"
-#include "version.h"
+//#include "version.h"
 
 #include "jit-icalls.h"
 
@@ -4945,10 +4945,10 @@ SIG_HANDLER_SIGNATURE (mono_sigsegv_signal_handler)
 
 #if defined(MONO_ARCH_SOFT_DEBUG_SUPPORTED) && defined(HAVE_SIG_INFO)
 	if (mono_arch_is_single_step_event (info, ctx)) {
-		mono_debugger_agent_single_step_event (ctx);
+		//mono_debugger_agent_single_step_event (ctx);
 		return;
 	} else if (mono_arch_is_breakpoint_event (info, ctx)) {
-		mono_debugger_agent_breakpoint_hit (ctx);
+		//mono_debugger_agent_breakpoint_hit (ctx);
 		return;
 	}
 #endif
@@ -5245,8 +5245,8 @@ mini_free_jit_domain_info (MonoDomain *domain)
 	g_hash_table_destroy (info->seq_points);
 	g_hash_table_destroy (info->arch_seq_points);
 
-	if (info->agent_info)
-		mono_debugger_agent_free_domain_info (domain);
+	// if (info->agent_info)
+	// 	mono_debugger_agent_free_domain_info (domain);
 
 	g_free (domain->runtime_info);
 	domain->runtime_info = NULL;
@@ -5335,7 +5335,7 @@ mini_init (const char *filename, const char *runtime_version)
 	if (default_opt & MONO_OPT_AOT)
 		mono_aot_init ();
 
-	mono_debugger_agent_init ();
+	//mono_debugger_agent_init ();
 
 #ifdef MONO_ARCH_GSHARED_SUPPORTED
 	mono_set_generic_sharing_supported (TRUE);
@@ -5397,19 +5397,8 @@ mini_init (const char *filename, const char *runtime_version)
 
 #ifdef MONO_ARCH_HAVE_IMT
 	if (mono_use_imt) {
-		if (mono_aot_only)
 			mono_install_imt_thunk_builder (mono_aot_get_imt_thunk);
-		else
-			mono_install_imt_thunk_builder (mono_arch_build_imt_thunk);
-#ifndef ENABLE_LLVM
-		/* LLVM needs a per-method vtable trampoline */
-		mono_install_vtable_trampoline (mini_get_vtable_trampoline ());
-		/* 
-		 * The imt code in mono_magic_trampoline () can't handle LLVM code. By disabling
-		 * this, we force iface calls to go through the llvm vcall trampoline.
-		 */
-		mono_install_imt_trampoline (mini_get_imt_trampoline ());
-#endif
+
 	}
 #endif
 
@@ -5828,9 +5817,9 @@ char*
 mono_get_runtime_build_info (void)
 {
 	if (mono_build_date)
-		return g_strdup_printf ("%s (%s %s)", VERSION, FULL_VERSION, mono_build_date);
+		return g_strdup_printf ("%s (%s)", VERSION, mono_build_date);
 	else
-		return g_strdup_printf ("%s (%s)", VERSION, FULL_VERSION);
+		return g_strdup_printf ("%s", VERSION);
 }
 
 static void

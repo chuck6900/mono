@@ -317,5 +317,4 @@ mono_x86_throw_corlib_exception (mgreg_t *regs, guint32 ex_token_index,
 void 
 mono_x86_patch (unsigned char* code, gpointer target) MONO_INTERNAL;
 
-#endif /* __MONO_MINI_X86_H__ */  
-
+#endif /* __MONO_MINI_X86_H__ */

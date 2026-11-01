@@ -41,6 +41,8 @@
 #include <mono/utils/freebsd-elf64.h>
 #endif
 
+//#define TARGET_ASM_APPLE
+
 #include "mini.h"
 
 #define TV_DECLARE(name) gint64 name
@@ -81,7 +83,8 @@
 #if defined(TARGET_ASM_APPLE)
 #define AS_INT16_DIRECTIVE ".short"
 #elif defined(TARGET_ASM_GAS)
-#define AS_INT16_DIRECTIVE ".hword"
+//#define AS_INT16_DIRECTIVE ".hword"
+#define AS_INT16_DIRECTIVE ".short"
 #else
 #define AS_INT16_DIRECTIVE ".word"
 #endif
@@ -1544,7 +1547,7 @@ asm_writer_emit_local_symbol (MonoImageWriter *acfg, const char *name, const cha
 	asm_writer_emit_unset_mode (acfg);
 
 #ifndef TARGET_ASM_APPLE
-	fprintf (acfg->fp, "\t.local %s\n", name);
+	//fprintf (acfg->fp, "\t.local %s\n", name);
 #endif
 
 	asm_writer_emit_symbol_type (acfg, name, func);
@@ -1556,7 +1559,7 @@ asm_writer_emit_symbol_size (MonoImageWriter *acfg, const char *name, const char
 	asm_writer_emit_unset_mode (acfg);
 
 #ifndef TARGET_ASM_APPLE
-	fprintf (acfg->fp, "\t.size %s,%s-%s\n", name, end_label, name);
+	//fprintf (acfg->fp, "\t.size %s,%s-%s\n", name, end_label, name);
 #endif
 }
 

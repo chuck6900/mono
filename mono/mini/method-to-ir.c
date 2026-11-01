@@ -2385,7 +2385,7 @@ mono_emit_method_call_full (MonoCompile *cfg, MonoMethod *method, MonoMethodSign
 		}
 
 		call->inst.sreg1 = slot_reg;
-		call->virtual = TRUE;
+		call->is_virtual = TRUE;
 	}
 
 	MONO_ADD_INS (cfg->cbb, (MonoInst*)call);

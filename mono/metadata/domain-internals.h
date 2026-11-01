@@ -165,13 +165,21 @@ typedef struct _MonoThunkFreeList {
 
 typedef struct _MonoJitCodeHash MonoJitCodeHash;
 
+struct _WapiCriticalSection
+{
+    CRITICAL_SECTION* mutex;
+    guint32 depth;
+};
+
+typedef struct _WapiCriticalSection WapiCriticalSection;
+
 struct _MonoDomain {
 	/*
 	 * This lock must never be taken before the loader lock,
 	 * i.e. if both are taken by the same thread, the loader lock
 	 * must taken first.
 	 */
-	CRITICAL_SECTION    lock;
+	WapiCriticalSection   lock;
 	MonoMemPool        *mp;
 	MonoCodeManager    *code_mp;
 	/*
@@ -185,7 +193,7 @@ struct _MonoDomain {
 	MonoException      *out_of_memory_ex;
 	MonoException      *null_reference_ex;
 	MonoException      *stack_overflow_ex;
-	MonoException      *divide_by_zero_ex;
+	//MonoException      *divide_by_zero_ex;
 	/* typeof (void) */
 	MonoObject         *typeof_void;
 	/* 
@@ -218,7 +226,7 @@ struct _MonoDomain {
 	GHashTable         *proxy_vtable_hash;
 	/* Protected by 'jit_code_hash_lock' */
 	MonoInternalHashTable jit_code_hash;
-	CRITICAL_SECTION    jit_code_hash_lock;
+	WapiCriticalSection   jit_code_hash_lock;
 	int		    num_jit_info_tables;
 	MonoJitInfoTable * 
 	  volatile          jit_info_table;
@@ -244,9 +252,9 @@ struct _MonoDomain {
 	GHashTable         *track_resurrection_handles_hash;
 #endif
 	/* Protects the three hashes above */
-	CRITICAL_SECTION   finalizable_objects_hash_lock;
+	WapiCriticalSection   finalizable_objects_hash_lock;
 	/* Used when accessing 'domain_assemblies' */
-	CRITICAL_SECTION    assemblies_lock;
+	WapiCriticalSection   assemblies_lock;
 
 	GHashTable	   *method_rgctx_hash;
 
@@ -294,14 +302,16 @@ typedef struct  {
 	const AssemblyVersionSet version_sets [2];
 } MonoRuntimeInfo;
 
-#define mono_domain_lock(domain) mono_locks_acquire(&(domain)->lock, DomainLock)
-#define mono_domain_unlock(domain) mono_locks_release(&(domain)->lock, DomainLock)
-#define mono_domain_assemblies_lock(domain) mono_locks_acquire(&(domain)->assemblies_lock, DomainAssembliesLock)
-#define mono_domain_assemblies_unlock(domain) mono_locks_release(&(domain)->assemblies_lock, DomainAssembliesLock)
-#define mono_domain_jit_code_hash_lock(domain) mono_locks_acquire(&(domain)->jit_code_hash_lock, DomainJitCodeHashLock)
-#define mono_domain_jit_code_hash_unlock(domain) mono_locks_release(&(domain)->jit_code_hash_lock, DomainJitCodeHashLock)
+#define mono_domain_lock(domain) mono_locks_acquire(&(domain)->lock.mutex, DomainLock)
+#define mono_domain_unlock(domain) mono_locks_release(&(domain)->lock.mutex, DomainLock)
+#define mono_domain_assemblies_lock(domain) mono_locks_acquire(&(domain)->assemblies_lock.mutex, DomainAssembliesLock)
+#define mono_domain_assemblies_unlock(domain) mono_locks_release(&(domain)->assemblies_lock.mutex, DomainAssembliesLock)
+#define mono_domain_jit_code_hash_lock(domain) mono_locks_acquire(&(domain)->jit_code_hash_lock.mutex, DomainJitCodeHashLock)
+#define mono_domain_jit_code_hash_unlock(domain) mono_locks_release(&(domain)->jit_code_hash_lock.mutex, DomainJitCodeHashLock)
 
 typedef MonoDomain* (*MonoLoadFunc) (const char *filename, const char *runtime_version);
+
+G_BEGIN_DECLS
 
 void
 mono_install_runtime_load  (MonoLoadFunc func) MONO_INTERNAL;
@@ -511,5 +521,7 @@ void mono_set_private_bin_path_from_config (MonoDomain *domain) MONO_INTERNAL;
 int mono_framework_version (void) MONO_INTERNAL;
 
 void mono_reflection_cleanup_domain (MonoDomain *domain) MONO_INTERNAL;
+
+G_END_DECLS
 
 #endif /* __MONO_METADATA_DOMAIN_INTERNALS_H__ */

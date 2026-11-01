@@ -57,7 +57,10 @@ set(libmonoutils_la_SOURCES
 	freebsd-elf_common.h 
 	freebsd-elf32.h	
 	freebsd-elf64.h	
-	freebsd-dwarf.h 
+	freebsd-dwarf.h
+    mono-error.c
+    mono-semaphore.c
+    mono-networkinterfaces.c
 	dtrace.h		
 	gc_wrapper.h)
 

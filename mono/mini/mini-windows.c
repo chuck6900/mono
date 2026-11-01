@@ -46,7 +46,7 @@
 #include <string.h>
 #include <ctype.h>
 #include "trace.h"
-#include "version.h"
+// #include "version.h"
 
 #include "jit-icalls.h"
 
@@ -104,6 +104,8 @@ win32_time_proc (UINT uID, UINT uMsg, DWORD dwUser, DWORD dw1, DWORD dw2)
 #endif
 	}
 }
+
+#pragma comment(lib, "Winmm.lib")
 
 void
 mono_runtime_setup_stat_profiler (void)

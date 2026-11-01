@@ -206,8 +206,8 @@ MonoException *
 mono_get_exception_divide_by_zero ()
 {
 	MonoDomain *domain = mono_domain_get ();
-	if (domain)
-		return domain->divide_by_zero_ex;
+	// if (domain)
+	// 	return domain->divide_by_zero_ex;
 	return mono_exception_from_name (mono_get_corlib (), "System",
 					 "DivideByZeroException");
 }

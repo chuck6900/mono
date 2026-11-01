@@ -11,7 +11,7 @@
 #include <string.h>
 
 #include <sys/types.h>
-#include <unistd.h>
+//#include <unistd.h>
 
 #ifdef HAVE_EXECINFO_H
 #include <execinfo.h>

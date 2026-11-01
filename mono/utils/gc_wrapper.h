@@ -48,7 +48,7 @@
 #	endif
 
 #if defined(PLATFORM_WIN32)
-#define CreateThread GC_CreateThread
+//#define CreateThread GC_CreateThread
 #endif
 
 #elif defined(HAVE_SGEN_GC)

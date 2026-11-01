@@ -47,7 +47,7 @@ typedef GC_word * GC_bitmap;
 
 typedef GC_word GC_descr;
 
-GC_API GC_descr GC_make_descriptor GC_PROTO((GC_bitmap bm, size_t len));
+GC_descr GC_make_descriptor GC_PROTO((GC_bitmap bm, size_t len));
 		/* Return a type descriptor for the object whose layout	*/
 		/* is described by the argument.			*/
 		/* The least significant bit of the first word is one	*/

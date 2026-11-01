@@ -6,6 +6,7 @@ msgstr ""
 "PO-Revision-Date: \n"
 "Last-Translator: Atsushi Eno <atsushi@ximian.com>\n"
 "Language-Team: \n"
+"Language: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -144,8 +145,8 @@ msgstr "`{0}' は属性クラスではありません"
 #: ../mcs/mcs/attribute.cs:263
 #, csharp-format
 msgid ""
-"`{0}' is ambiguous between `{0}' and `{0}Attribute'. Use either `@{0}' or `"
-"{0}Attribute'"
+"`{0}' is ambiguous between `{0}' and `{0}Attribute'. Use either `@{0}' or "
+"`{0}Attribute'"
 msgstr ""
 "`{0} は `{0}' と `{0}Attribute' の間で曖昧です。`@{0}' または `{0}Attribute' "
 "を使用してください"
@@ -181,8 +182,8 @@ msgstr ""
 #: ../mcs/mcs/attribute.cs:1199
 #, csharp-format
 msgid ""
-"The attribute `{0}' is not valid on this declaration type. It is valid on `"
-"{1}' declarations only"
+"The attribute `{0}' is not valid on this declaration type. It is valid on "
+"`{1}' declarations only"
 msgstr "属性 `{0}' はこの宣言型では無効です。 `{1}' の宣言でのみ有効です"
 
 #: ../mcs/mcs/attribute.cs:1493
@@ -606,8 +607,8 @@ msgstr "`{0}' は特別なクラス `{1}' から派生することはできま�
 #: ../mcs/mcs/class.cs:2880
 #, csharp-format
 msgid ""
-"Inconsistent accessibility: base class `{0}' is less accessible than class `"
-"{1}'"
+"Inconsistent accessibility: base class `{0}' is less accessible than class "
+"`{1}'"
 msgstr ""
 "一貫性の無いアクセス修飾子: 基底クラス `{0}' はクラス `{1}' よりもアクセスが"
 "限定的です"
@@ -672,12 +673,16 @@ msgstr ""
 #: ../mcs/mcs/class.cs:3434
 #, csharp-format
 msgid "`{0}': type must be `{1}' to match overridden member `{2}'"
-msgstr "`{0}': オーバーライドされたメンバ `{2}' に適合するためには、型が `{1}' でなければなりません"
+msgstr ""
+"`{0}': オーバーライドされたメンバ `{2}' に適合するためには、型が `{1}' でなけ"
+"ればなりません"
 
 #: ../mcs/mcs/class.cs:3438
 #, csharp-format
 msgid "`{0}': return type must be `{1}' to match overridden member `{2}'"
-msgstr "`{0}': オーバーライドされたメンバ `{2}' に適合するには、戻り値型は `{1}' でなければなりません"
+msgstr ""
+"`{0}': オーバーライドされたメンバ `{2}' に適合するには、戻り値型は `{1}' でな"
+"ければなりません"
 
 #: ../mcs/mcs/class.cs:3460
 #, csharp-format
@@ -689,26 +694,34 @@ msgstr "`{0}' は継承されるabstractメンバ `{1}' を隠蔽してしまい
 msgid ""
 "Inconsistent accessibility: parameter type `{0}' is less accessible than "
 "indexer `{1}'"
-msgstr "一貫性の無いアクセス制限: パラメータ型 `{0}' はインデクサ '{1}' よりもアクセスが限られています"
+msgstr ""
+"一貫性の無いアクセス制限: パラメータ型 `{0}' はインデクサ '{1}' よりもアクセ"
+"スが限られています"
 
 #: ../mcs/mcs/class.cs:3524
 #, csharp-format
 msgid ""
 "Inconsistent accessibility: parameter type `{0}' is less accessible than "
 "operator `{1}'"
-msgstr "一貫性の無いアクセス制限: パラメータ型 `{0}' は演算子 '{1}' よりもアクセスが限られています"
+msgstr ""
+"一貫性の無いアクセス制限: パラメータ型 `{0}' は演算子 '{1}' よりもアクセスが"
+"限られています"
 
 #: ../mcs/mcs/class.cs:3528
 #, csharp-format
 msgid ""
 "Inconsistent accessibility: parameter type `{0}' is less accessible than "
 "method `{1}'"
-msgstr "一貫性の無いアクセス制限: パラメータ型 `{0}' はメソッド '{1}' よりもアクセスが限られています"
+msgstr ""
+"一貫性の無いアクセス制限: パラメータ型 `{0}' はメソッド '{1}' よりもアクセス"
+"が限られています"
 
 #: ../mcs/mcs/class.cs:3548
 #, csharp-format
 msgid "`{0}' in explicit interface declaration is not an interface"
-msgstr "明示的なインターフェース実装で記述された `{0}' は、インターフェースではありません"
+msgstr ""
+"明示的なインターフェース実装で記述された `{0}' は、インターフェースではありま"
+"せん"
 
 #: ../mcs/mcs/class.cs:3587
 #, csharp-format
@@ -718,27 +731,35 @@ msgstr "部分メソッド `{0}' はインターフェースを明示的に実�
 #: ../mcs/mcs/class.cs:3595
 #, csharp-format
 msgid "'{0}' in explicit interface declaration is not an interface"
-msgstr "明示的なインターフェースの宣言で記述された `{0}' は、インターフェースではありません"
+msgstr ""
+"明示的なインターフェースの宣言で記述された `{0}' は、インターフェースではあり"
+"ません"
 
 #: ../mcs/mcs/class.cs:3614
 #, csharp-format
 msgid ""
 "`{0}' is marked as an external but has no DllImport attribute. Consider "
 "adding a DllImport attribute to specify the external implementation"
-msgstr "`{0}' はexternalとして宣言されていますが、DllImport属性をもちません。DllImport属性を追加して、外部実装を指定するようにしてください"
+msgstr ""
+"`{0}' はexternalとして宣言されていますが、DllImport属性をもちません。"
+"DllImport属性を追加して、外部実装を指定するようにしてください"
 
 #: ../mcs/mcs/class.cs:3631
 #, csharp-format
 msgid ""
 "`{0}': cannot change access modifiers when overriding `{1}' inherited member "
 "`{2}'"
-msgstr "`{0}': `{1}' の継承されたメンバー `{2}' をオーバーライドするとき、アクセス修飾子は変更できません"
+msgstr ""
+"`{0}': `{1}' の継承されたメンバー `{2}' をオーバーライドするとき、アクセス修"
+"飾子は変更できません"
 
 #: ../mcs/mcs/class.cs:3724
 msgid ""
 "The DllImport attribute must be specified on a method marked `static' and "
 "`extern'"
-msgstr "`static'かつ`extern'で宣言されたメソッドには、DllImport属性が指定されなければなりません"
+msgstr ""
+"`static'かつ`extern'で宣言されたメソッドには、DllImport属性が指定されなければ"
+"なりません"
 
 #: ../mcs/mcs/class.cs:3787
 #, csharp-format
@@ -750,11 +771,14 @@ msgstr "`{0}': 部分メソッドのパラメータで`out'修飾子は使用で
 msgid ""
 "Conditional not valid on `{0}' because it is a constructor, destructor, "
 "operator or explicit interface implementation"
-msgstr "Conditionalは コンストラクタ、デストラクタ、演算子または明示的なインターフェースの実装である `{0}'  では無効です"
+msgstr ""
+"Conditionalは コンストラクタ、デストラクタ、演算子または明示的なインター"
+"フェースの実装である `{0}'  では無効です"
 
 #: ../mcs/mcs/class.cs:3924
 msgid "Do not override object.Finalize. Instead, provide a destructor"
-msgstr "object.Finalizeをオーバーライドせず、代わりにデストラクタを提供してください"
+msgstr ""
+"object.Finalizeをオーバーライドせず、代わりにデストラクタを提供してください"
 
 #: ../mcs/mcs/class.cs:4096
 #, csharp-format
@@ -778,7 +802,8 @@ msgstr "Conditionalはインターフェースメンバでは無効です"
 #: ../mcs/mcs/class.cs:4143
 #, csharp-format
 msgid "Conditional member `{0}' cannot implement interface member `{1}'"
-msgstr "Conditionalメンバ `{0}' はインターフェースメンバ `{1}' を実装できません"
+msgstr ""
+"Conditionalメンバ `{0}' はインターフェースメンバ `{1}' を実装できません"
 
 #: ../mcs/mcs/class.cs:4150
 #, csharp-format
@@ -796,7 +821,10 @@ msgid ""
 "`{0}': Extension methods cannot be declared without a reference to System."
 "Core.dll assembly. Add the assembly reference or remove `this' modifer from "
 "the first parameter"
-msgstr "`{0}': 拡張メソッドはSystem.Core.dllアセンブリへの参照なしでは宣言できません。アセンブリ参照を追加するか、または最初のパラメータから `this' 修飾子を取り除いてください。"
+msgstr ""
+"`{0}': 拡張メソッドはSystem.Core.dllアセンブリへの参照なしでは宣言できませ"
+"ん。アセンブリ参照を追加するか、または最初のパラメータから `this' 修飾子を取"
+"り除いてください。"
 
 #: ../mcs/mcs/class.cs:4237
 #, csharp-format
@@ -984,8 +1012,8 @@ msgstr ""
 #: ../mcs/mcs/class.cs:6049
 #, csharp-format
 msgid ""
-"Attribute `{0}' is not valid on property or event accessors. It is valid on `"
-"{1}' declarations only"
+"Attribute `{0}' is not valid on property or event accessors. It is valid on "
+"`{1}' declarations only"
 msgstr ""
 
 #: ../mcs/mcs/class.cs:6149 ../mcs/mcs/decl.cs:2792
@@ -2069,8 +2097,8 @@ msgstr ""
 #: ../mcs/mcs/ecore.cs:5932
 #, csharp-format
 msgid ""
-"An implicitly typed local variable declaration cannot be initialized with `"
-"{0}'"
+"An implicitly typed local variable declaration cannot be initialized with "
+"`{0}'"
 msgstr ""
 
 #: ../mcs/mcs/ecore.cs:5943
@@ -2191,8 +2219,8 @@ msgstr ""
 #: ../mcs/mcs/expression.cs:3687
 #, csharp-format
 msgid ""
-"The type `{0}' must have operator `true' and operator `false' defined when `"
-"{1}' is used as a short circuit operator"
+"The type `{0}' must have operator `true' and operator `false' defined when "
+"`{1}' is used as a short circuit operator"
 msgstr ""
 
 #: ../mcs/mcs/expression.cs:3934
@@ -2356,8 +2384,8 @@ msgstr ""
 #: ../mcs/mcs/expression.cs:7599
 #, csharp-format
 msgid ""
-"Type `{0}' does not contain a definition for `{1}' and no extension method `"
-"{1}' of type `{0}' could be found (are you missing a using directive or an "
+"Type `{0}' does not contain a definition for `{1}' and no extension method "
+"`{1}' of type `{0}' could be found (are you missing a using directive or an "
 "assembly reference?)"
 msgstr ""
 
@@ -2543,8 +2571,8 @@ msgstr ""
 #: ../mcs/mcs/generic.cs:249
 #, csharp-format
 msgid ""
-"Inconsistent accessibility: constraint type `{0}' is less accessible than `"
-"{1}'"
+"Inconsistent accessibility: constraint type `{0}' is less accessible than "
+"`{1}'"
 msgstr ""
 
 #: ../mcs/mcs/generic.cs:261
@@ -2672,8 +2700,8 @@ msgstr ""
 #: ../mcs/mcs/generic.cs:1634
 #, csharp-format
 msgid ""
-"The type `{0}' must be convertible to `{1}' in order to use it as parameter `"
-"{2}' in the generic type or method `{3}'"
+"The type `{0}' must be convertible to `{1}' in order to use it as parameter "
+"`{2}' in the generic type or method `{3}'"
 msgstr ""
 
 #: ../mcs/mcs/generic.cs:1827

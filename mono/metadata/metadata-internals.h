@@ -261,7 +261,7 @@ struct _MonoImage {
 	 * No other runtime locks must be taken while holding this lock.
 	 * It's meant to be used only to mutate and query structures part of this image.
 	 */
-	CRITICAL_SECTION    lock;
+	WapiCriticalSection   lock;
 };
 
 enum {

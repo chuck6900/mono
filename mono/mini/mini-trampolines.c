@@ -966,7 +966,6 @@ mono_trampolines_init (void)
 {
 	InitializeCriticalSection (&trampolines_mutex);
 
-	if (mono_aot_only)
 		return;
 
 	mono_trampoline_code [MONO_TRAMPOLINE_JIT] = mono_arch_create_trampoline_code (MONO_TRAMPOLINE_JIT);
@@ -1124,13 +1123,11 @@ mono_create_jit_trampoline_in_domain (MonoDomain *domain, MonoMethod *method)
 {
 	gpointer tramp;
 
-	if (mono_aot_only) {
 		/* Avoid creating trampolines if possible */
 		gpointer code = mono_jit_find_compiled_method (domain, method);
 		
 		if (code)
 			return code;
-	}
 
 	mono_domain_lock (domain);
 	tramp = g_hash_table_lookup (domain_jit_info (domain)->jit_trampoline_hash, method);
@@ -1138,15 +1135,7 @@ mono_create_jit_trampoline_in_domain (MonoDomain *domain, MonoMethod *method)
 	if (tramp)
 		return tramp;
 
-	tramp = mono_create_specific_trampoline (method, MONO_TRAMPOLINE_JIT, domain, NULL);
-	
-	mono_domain_lock (domain);
-	g_hash_table_insert (domain_jit_info (domain)->jit_trampoline_hash, method, tramp);
-	mono_domain_unlock (domain);
-
-	mono_jit_stats.method_trampolines++;
-
-	return tramp;
+	return 0;
 }	
 
 gpointer

@@ -893,8 +893,8 @@ ves_icall_System_IO_MonoIO_get_ConsoleOutput ()
 	MONO_ARCH_SAVE_REGS;
 
 #if WIN32	
-	h = unity_mono_get_log_handle();
-	if (h) return h;
+	// h = unity_mono_get_log_handle();
+	// if (h) return h;
 #endif
 	return GetStdHandle (STD_OUTPUT_HANDLE);
 }
@@ -916,8 +916,8 @@ ves_icall_System_IO_MonoIO_get_ConsoleError ()
 	MONO_ARCH_SAVE_REGS;
 
 #if WIN32	
-	h = unity_mono_get_log_handle();
-	if (h) return h;
+	// h = unity_mono_get_log_handle();
+	// if (h) return h;
 #endif
 	return GetStdHandle (STD_ERROR_HANDLE);
 }

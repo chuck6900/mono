@@ -215,8 +215,7 @@ mono_runtime_install_handlers (void)
 	}
 #endif
 }
-
-pid_t
+int
 mono_runtime_syscall_fork ()
 {
 #if defined(__i386__)

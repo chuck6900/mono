@@ -1,8 +1,6 @@
 #ifndef __MONO_MONO_SIGCONTEXT_H__
 #define __MONO_MONO_SIGCONTEXT_H__
 
-#include <config.h>
-
 #if defined(__i386__)
 
 #if defined(__FreeBSD__) || defined(__APPLE__) || defined(__QNXNTO__)

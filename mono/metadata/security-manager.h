@@ -63,6 +63,8 @@ typedef struct {
 	MonoClass *suppressunmanagedcodesecurity;	/* System.Security.SuppressUnmanagedCodeSecurityAttribute */
 } MonoSecurityManager;
 
+G_BEGIN_DECLS
+
 /* Initialization/utility functions */
 void mono_activate_security_manager (void) MONO_INTERNAL;
 gboolean mono_is_security_manager_active (void) MONO_INTERNAL;
@@ -84,5 +86,6 @@ MonoBoolean ves_icall_System_Security_SecurityManager_get_CheckExecutionRights (
 void ves_icall_System_Security_SecurityManager_set_CheckExecutionRights (MonoBoolean value) MONO_INTERNAL;
 MonoBoolean ves_icall_System_Security_SecurityManager_GetLinkDemandSecurity (MonoReflectionMethod *m, MonoDeclSecurityActions *kactions, MonoDeclSecurityActions *mactions) MONO_INTERNAL;
 
+G_END_DECLS
 
 #endif /* _MONO_METADATA_SECURITY_MANAGER_H_ */

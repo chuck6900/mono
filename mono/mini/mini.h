@@ -635,7 +635,7 @@ struct MonoCallInst {
 	MonoInst *vret_var;
 	gconstpointer fptr;
 	guint stack_usage;
-	guint virtual : 1;
+	guint is_virtual : 1;
 	guint tail_call : 1;
 	/* If this is TRUE, 'fptr' points to a MonoJumpInfo instead of an address. */
 	guint fptr_is_patch : 1;
@@ -1392,6 +1392,8 @@ enum {
 
 typedef void (*MonoInstFunc) (MonoInst *tree, gpointer data);
 
+G_BEGIN_DECLS
+
 /* main function */
 int         mono_main                      (int argc, char* argv[]);
 void        mono_set_defaults              (int verbose_level, guint32 opts);
@@ -1504,6 +1506,21 @@ gint32    mono_linterval_get_intersect_pos  (MonoLiveInterval *i1, MonoLiveInter
 void      mono_linterval_split              (MonoCompile *cfg, MonoLiveInterval *interval, MonoLiveInterval **i1, MonoLiveInterval **i2, int pos) MONO_INTERNAL;
 void      mono_liveness_handle_exception_clauses (MonoCompile *cfg) MONO_INTERNAL;
 
+typedef void*(* file_offset_hook)(void* base, uint32_t addr, void** orig, int size);
+void mono_set_base_addr(uint8_t* base, file_offset_hook hook);
+#ifdef __cplusplus
+#define fix(addr) static_cast<decltype(addr)>(fix_impl((void*)(addr), (void**)&(addr)))
+#else
+#define fix(addr) fix_impl((void*)(addr), (void**)&(addr))
+#endif
+#ifdef __cplusplus
+#define fix_v(addr) (*((decltype(addr)*)fix_impl_v((void*)(&(addr)), sizeof(addr))))
+#else
+#define fix_v(addr) (*((__typeof__(addr)*)fix_impl_v((void*)(&(addr)), sizeof(addr))))
+#endif
+void* fix_impl(gpointer addr, gpointer* orig);
+void* fix_impl_v(gpointer addr, int size);
+
 /* AOT */
 void      mono_aot_init                     (void) MONO_INTERNAL;
 gpointer  mono_aot_get_method               (MonoDomain *domain,
@@ -1556,14 +1573,14 @@ gboolean  mono_method_same_domain           (MonoJitInfo *caller, MonoJitInfo *c
 void      mono_register_opcode_emulation    (int opcode, const char* name, const char *sigstr, gpointer func, gboolean no_throw) MONO_INTERNAL;
 void      mono_draw_graph                   (MonoCompile *cfg, MonoGraphOptions draw_options) MONO_INTERNAL;
 void      mono_add_ins_to_end               (MonoBasicBlock *bb, MonoInst *inst) MONO_INTERNAL;
-gpointer  mono_create_ftnptr                (MonoDomain *domain, gpointer addr) MONO_INTERNAL;
+// gpointer  mono_create_ftnptr                (MonoDomain *domain, gpointer addr) MONO_INTERNAL;
 
 void      mono_replace_ins                  (MonoCompile *cfg, MonoBasicBlock *bb, MonoInst *ins, MonoInst **prev, MonoBasicBlock *first_bb, MonoBasicBlock *last_bb);
 
 int               mono_find_method_opcode      (MonoMethod *method) MONO_INTERNAL;
-MonoJitICallInfo *mono_find_jit_icall_by_name  (const char *name) MONO_INTERNAL;
-MonoJitICallInfo *mono_find_jit_icall_by_addr  (gconstpointer addr) MONO_INTERNAL;
-MonoJitICallInfo *mono_register_jit_icall      (gconstpointer func, const char *name, MonoMethodSignature *sig, gboolean is_save) MONO_INTERNAL;
+// MonoJitICallInfo *mono_find_jit_icall_by_name  (const char *name) MONO_INTERNAL;
+// MonoJitICallInfo *mono_find_jit_icall_by_addr  (gconstpointer addr) MONO_INTERNAL;
+// MonoJitICallInfo *mono_register_jit_icall      (gconstpointer func, const char *name, MonoMethodSignature *sig, gboolean is_save) MONO_INTERNAL;
 gconstpointer     mono_icall_get_wrapper       (MonoJitICallInfo* callinfo) MONO_INTERNAL;
 
 void              mono_trampolines_init (void) MONO_INTERNAL;
@@ -1857,6 +1874,8 @@ void      mono_debug_add_icall_wrapper          (MonoMethod *method, MonoJitICal
 void      mono_debug_print_vars                 (gpointer ip, gboolean only_arguments);
 void      mono_debugger_run_finally             (MonoContext *start_ctx);
 
+G_END_DECLS
+
 extern gssize mono_breakpoint_info_index [MONO_BREAKPOINT_ARRAY_SIZE];
 
 gboolean mono_breakpoint_clean_code (guint8 *method_start, guint8 *code, int offset, guint8 *buf, int size);
@@ -1909,8 +1928,8 @@ gpointer mono_helper_get_rgctx_other_ptr (MonoClass *caller_class, MonoVTable *v
 
 void mono_generic_sharing_init (void) MONO_INTERNAL;
 
-MonoClass* mini_class_get_container_class (MonoClass *class) MONO_INTERNAL;
-MonoGenericContext* mini_class_get_context (MonoClass *class) MONO_INTERNAL;
+MonoClass* mini_class_get_container_class (MonoClass *klass) MONO_INTERNAL;
+MonoGenericContext* mini_class_get_context (MonoClass *klass) MONO_INTERNAL;
 
 MonoType* mini_get_basic_type_from_generic (MonoGenericSharingContext *gsctx, MonoType *type) MONO_INTERNAL;
 MonoType* mini_type_get_underlying_type (MonoGenericSharingContext *gsctx, MonoType *type) MONO_INTERNAL;
@@ -1975,7 +1994,7 @@ void mono_runtime_cleanup_handlers (void) MONO_INTERNAL;
 void mono_runtime_setup_stat_profiler (void) MONO_INTERNAL;
 void mono_runtime_shutdown_stat_profiler (void) MONO_INTERNAL;
 void mono_runtime_posix_install_handlers (void) MONO_INTERNAL;
-pid_t mono_runtime_syscall_fork (void) MONO_INTERNAL;
+int mono_runtime_syscall_fork (void) MONO_INTERNAL;
 gboolean mono_gdb_render_native_backtraces (void) MONO_INTERNAL;
 
 /*

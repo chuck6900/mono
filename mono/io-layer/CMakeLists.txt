@@ -112,21 +112,10 @@ set(WINDOWS_SRC
 set(HPPA_SRC
   hppa_atomic.S)
 
-if(PLATFORM_WIN32)
+
 ###if PLATFORM_WIN32
-###libwapi_la_SOURCES = $(WINDOWS_SRC)
-###libwapiinclude_HEADERS = $(WINDOWS_H)
-else()
-###if HPPA
-###libwapi_la_SOURCES = $(OTHER_SRC) $(HPPA_SRC)
-#### to enable pick up of config.h
-###libwapi_la_CCASFLAGS = -I$(top_builddir)
-###else
-set(libwapi_la_SOURCES ${OTHER_SRC})
-###endif
-###libwapiinclude_HEADERS = $(OTHER_H)
-###endif
-endif()
+set(libwapi_la_SOURCES ${WINDOWS_SRC})
+set(libwapiinclude_HEADERS ${WINDOWS_H})
 
 ###EXTRA_DIST =
 ###	$(WINDOWS_SRC)

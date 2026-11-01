@@ -10,6 +10,8 @@
  */
 
 #include <config.h>
+
+#include "mini/mini.h"
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
 #endif
@@ -913,6 +915,7 @@ const char *
 mono_metadata_blob_heap (MonoImage *meta, guint32 index)
 {
 	g_return_val_if_fail (index < meta->heap_blob.size, "");/*FIXME shouldn't we return NULL and check for index == 0?*/
+    fix(meta->heap_blob.data);
 	return meta->heap_blob.data + index;
 }
 

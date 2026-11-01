@@ -30,6 +30,7 @@
 
 /* Resolves '..' and '.' references in a path. If the path provided is relative,
  * it will be relative to the current directory */
+
 gchar *
 mono_path_canonicalize (const char *path)
 {

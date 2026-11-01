@@ -55,7 +55,7 @@ br: len:4
 throw: src1:i len:20
 rethrow: src1:i len:20
 ckfinite: dest:f src1:f
-ppc_check_finite: src1:i len:16
+# ppc_check_finite: src1:i len:16
 add_ovf_carry: dest:i src1:i src2:i len:16
 sub_ovf_carry: dest:i src1:i src2:i len:16
 add_ovf_un_carry: dest:i src1:i src2:i len:16
@@ -205,8 +205,8 @@ subcc: dest:i src1:i src2:i len:4
 addcc_imm: dest:i src1:i len:4
 sbb: dest:i src1:i src2:i len:4
 br_reg: src1:i len:8
-ppc_subfic: dest:i src1:i len:4
-ppc_subfze: dest:i src1:i len:4
+# ppc_subfic: dest:i src1:i len:4
+# ppc_subfze: dest:i src1:i len:4
 bigmul: len:12 dest:l src1:i src2:i
 bigmul_un: len:12 dest:l src1:i src2:i
 tls_get: len:20 dest:i

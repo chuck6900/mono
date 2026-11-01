@@ -10,30 +10,14 @@
 
 #include "config.h"
 #include <sys/types.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 #include <fcntl.h>
 #include <string.h>
-#ifdef HAVE_SYS_MMAN_H
-#include <sys/mman.h>
-#endif
 
-#if PLATFORM_WIN32
 #include <winsock2.h>
 #include <windows.h>
-#endif
-
-#ifdef HAVE_EXECINFO_H
-#include <execinfo.h>
-#endif
 
 #include <errno.h>
 #include <sys/stat.h>
-
-#ifdef HAVE_SYS_WAIT_H
-#include <sys/wait.h>  /* for WIFEXITED, WEXITSTATUS */
-#endif
 
 #include <mono/metadata/tabledefs.h>
 #include <mono/metadata/class.h>
@@ -53,17 +37,8 @@
 #include <mono/utils/mono-counters.h>
 
 #include "mini.h"
-#include "version.h"
 
-#ifndef DISABLE_AOT
-
-#ifdef PLATFORM_WIN32
 #define SHARED_EXT ".dll"
-#elif ((defined(__ppc__) || defined(__powerpc__) || defined(__ppc64__)) || defined(__MACH__)) && !defined(__linux__)
-#define SHARED_EXT ".dylib"
-#else
-#define SHARED_EXT ".so"
-#endif
 
 #define ALIGN_PTR_TO(ptr,align) (gpointer)((((gssize)(ptr)) + (align - 1)) & (~(align - 1)))
 #define ROUND_DOWN(VALUE,SIZE)	((VALUE) & ~((SIZE) - 1))
@@ -166,6 +141,26 @@ static gsize aot_code_high_addr = 0;
 #if defined(PLATFORM_IPHONE)                                                                                                                                                                      
 int mono_ficall_flag;                                                                                                                                                                             
 #endif
+
+uint8_t* s_base;
+file_offset_hook s_hook;
+
+void* fix_impl(gpointer addr, gpointer* orig) {
+    // if (addr > (void*)s_base)
+    //     return addr;
+    return s_hook(s_base, (uint32_t)addr, orig, -1);
+}
+
+void* fix_impl_v(gpointer addr, int size) {
+    // if (addr > (void*)s_base)
+    //     return addr;
+    return s_hook(s_base, *(uint32_t*)addr, addr, size);
+}
+
+void mono_set_base_addr(uint8_t* base, file_offset_hook hook) {
+    s_base = base;
+    s_hook = hook;
+}
 
 static void
 init_plt (MonoAotModule *info);
@@ -850,7 +845,7 @@ find_symbol (MonoDl *module, gpointer *globals, const char *name, gpointer *valu
 		guint32 hash;		
 
 		/* The first entry points to the hash */
-		table = globals [0];
+		table = fix(globals [0]);
 		globals ++;
 
 		table_size = table [0];
@@ -866,9 +861,9 @@ find_symbol (MonoDl *module, gpointer *globals, const char *name, gpointer *valu
 			guint32 index = entry [0] - 1;
 			guint32 next = entry [1];
 
-			//printf ("X: %s %s\n", (char*)globals [index * 2], name);
+			// printf ("X: %s %s\n", (char*)fix(globals [index * 2]), name);
 
-			if (!strcmp (globals [index * 2], name)) {
+			if (!strcmp (fix(globals [index * 2]), name)) {
 				global_index = index;
 				break;
 			}
@@ -881,7 +876,7 @@ find_symbol (MonoDl *module, gpointer *globals, const char *name, gpointer *valu
 		}
 
 		if (global_index != -1)
-			*value = globals [global_index * 2 + 1];
+			*value = fix(globals [global_index * 2 + 1]);
 		else
 			*value = NULL;
 	} else {
@@ -1025,7 +1020,7 @@ load_aot_module (MonoAssembly *assembly, gpointer user_data)
 
 	memcpy (&amodule->info, file_info, sizeof (*file_info));
 
-	amodule->got = *got_addr;
+	amodule->got = fix(*got_addr);
 	amodule->got [0] = assembly->image;
 	amodule->globals = globals;
 	amodule->sofile = sofile;
@@ -1197,6 +1192,7 @@ mono_aot_register_globals (gpointer *globals)
 void
 mono_aot_register_module (gpointer *aot_info)
 {
+    aot_info = fix(aot_info);
 	gpointer *globals;
 	char *aname;
 
@@ -2118,7 +2114,7 @@ load_method (MonoDomain *domain, MonoAotModule *amodule, MonoImage *image, MonoM
 			MonoJumpInfo *ji = &patches [pindex];
 
 			if (!amodule->got [got_slots [pindex]]) {
-				amodule->got [got_slots [pindex]] = mono_resolve_patch_target (method, domain, code, ji, TRUE);
+				amodule->got [got_slots [pindex]] = mono_resolve_patch_target (method, domain, code, ji, FALSE);
 				if (ji->type == MONO_PATCH_INFO_METHOD_JUMP)
 					amodule->got [got_slots [pindex]] = mono_create_ftnptr (domain, amodule->got [got_slots [pindex]]);
 				if (ji->type == MONO_PATCH_INFO_METHOD_JUMP)
@@ -2872,8 +2868,12 @@ load_function (MonoAotModule *amodule, const char *name)
 #ifdef TARGET_X86
 				} else if (!strcmp (ji->data.name, "mono_x86_throw_corlib_exception")) {
 					target = mono_x86_throw_corlib_exception;
+				} else if (!strcmp (ji->data.name, "mono_arm_throw_exception")) {
+				    target = mono_x86_throw_exception;
+				} else if (!strcmp (ji->data.name, "mono_arm_throw_exception_by_token")) {
+				    target = mono_x86_throw_exception;
 #endif
-#ifdef __arm__
+#if __arm__ || ARM
 				} else if (!strcmp (ji->data.name, "mono_arm_throw_exception")) {
 					target = mono_arm_throw_exception;
 				} else if (!strcmp (ji->data.name, "mono_arm_throw_exception_by_token")) {
@@ -3227,129 +3227,3 @@ mono_aot_handle_pagefault (void *ptr)
 	mono_aot_unlock ();
 #endif
 }
-
-#else
-/* AOT disabled */
-
-void
-mono_aot_init (void)
-{
-}
-
-gpointer
-mono_aot_get_method (MonoDomain *domain, MonoMethod *method)
-{
-	return NULL;
-}
-
-gboolean
-mono_aot_is_got_entry (guint8 *code, guint8 *addr)
-{
-	return FALSE;
-}
-
-gboolean
-mono_aot_get_cached_class_info (MonoClass *klass, MonoCachedClassInfo *res)
-{
-	return FALSE;
-}
-
-gboolean
-mono_aot_get_class_from_name (MonoImage *image, const char *name_space, const char *name, MonoClass **klass)
-{
-	return FALSE;
-}
-
-MonoJitInfo *
-mono_aot_find_jit_info (MonoDomain *domain, MonoImage *image, gpointer addr)
-{
-	return NULL;
-}
-
-gpointer
-mono_aot_get_method_from_token (MonoDomain *domain, MonoImage *image, guint32 token)
-{
-	return NULL;
-}
-
-guint8*
-mono_aot_get_plt_entry (guint8 *code)
-{
-	return NULL;
-}
-
-gpointer
-mono_aot_plt_resolve (gpointer aot_module, guint32 plt_info_offset, guint8 *code)
-{
-	return NULL;
-}
-
-void
-mono_aot_patch_plt_entry (guint8 *code, gpointer *got, mgreg_t *regs, guint8 *addr)
-{
-}
-
-gpointer
-mono_aot_get_method_from_vt_slot (MonoDomain *domain, MonoVTable *vtable, int slot)
-{
-	return NULL;
-}
-
-guint32
-mono_aot_get_plt_info_offset (mgreg_t *regs, guint8 *code)
-{
-	g_assert_not_reached ();
-
-	return 0;
-}
-
-gpointer
-mono_aot_create_specific_trampoline (MonoImage *image, gpointer arg1, MonoTrampolineType tramp_type, MonoDomain *domain, guint32 *code_len)
-{
-	g_assert_not_reached ();
-	return NULL;
-}
-
-gpointer
-mono_aot_get_static_rgctx_trampoline (gpointer ctx, gpointer addr)
-{
-	g_assert_not_reached ();
-	return NULL;
-}
-
-gpointer
-mono_aot_get_named_code (const char *name)
-{
-	g_assert_not_reached ();
-	return NULL;
-}
-
-gpointer
-mono_aot_get_unbox_trampoline (MonoMethod *method)
-{
-	g_assert_not_reached ();
-	return NULL;
-}
-
-gpointer
-mono_aot_get_lazy_fetch_trampoline (guint32 slot)
-{
-	g_assert_not_reached ();
-	return NULL;
-}
-
-gpointer
-mono_aot_get_imt_thunk (MonoVTable *vtable, MonoDomain *domain, MonoIMTCheckItem **imt_entries, int count, gpointer fail_tramp)
-{
-	g_assert_not_reached ();
-	return NULL;
-}	
-
-guint8*
-mono_aot_get_unwind_info (MonoJitInfo *ji, guint32 *unwind_info_len)
-{
-	g_assert_not_reached ();
-	return NULL;
-}
-
-#endif

@@ -4,6 +4,7 @@
 #ifdef WIN32
 #include <fcntl.h>
 #endif
+#include <corecrt_io.h>
 #include <mono/metadata/object.h>
 #include <mono/metadata/metadata.h>
 #include <mono/metadata/tabledefs.h>
@@ -33,9 +34,9 @@ void unity_mono_redirect_output( HANDLE handle )
 	DWORD written;
 //	int fd_copy;
 	unity_log_output = handle;	
-	fd = _open_osfhandle((intptr_t)handle, (_O_APPEND | _O_TEXT));
-	stdout->_file = fd;
-	_dup2(fd,_fileno(stdout));
+	// fd = _open_osfhandle((intptr_t)handle, (_O_APPEND | _O_TEXT));
+	// stdout->_file = fd;
+	// _dup2(fd,_fileno(stdout));
 	//*stdout = *_fdopen(fd, "at");
 	
 	setvbuf(stdout, NULL, _IONBF, 0);
@@ -121,10 +122,10 @@ mono_unity_socket_security_enabled_set (gboolean enabled)
 	socket_security_enabled = enabled;
 }
 
-void mono_unity_set_vprintf_func (vprintf_func func)
-{
-	set_vprintf_func (func);
-}
+// void mono_unity_set_vprintf_func (vprintf_func func)
+// {
+// 	set_vprintf_func (func);
+// }
 
 gboolean
 mono_unity_class_is_interface (MonoClass* klass)
@@ -138,8 +139,8 @@ mono_unity_class_is_abstract (MonoClass* klass)
 	return (klass->flags & TYPE_ATTRIBUTE_ABSTRACT);
 }
 
-void
-unity_mono_install_memory_callbacks(MonoMemoryCallbacks* callbacks)
-{
-	g_mem_set_callbacks (callbacks);
-}
+// void
+// unity_mono_install_memory_callbacks(MonoMemoryCallbacks* callbacks)
+// {
+// 	g_mem_set_callbacks (callbacks);
+// }

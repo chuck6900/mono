@@ -38,6 +38,8 @@
 #include <mono/metadata/verify-internals.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+
+#include "mini/mini.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -2162,13 +2164,14 @@ g_slist_append_image (MonoImage *image, GSList *list, gpointer data)
 void
 mono_image_lock (MonoImage *image)
 {
-	mono_locks_acquire (&image->lock, ImageDataLock);
+    image->lock.mutex = malloc(sizeof(CRITICAL_SECTION));
+	mono_locks_acquire (&image->lock.mutex, ImageDataLock);
 }
 
 void
 mono_image_unlock (MonoImage *image)
 {
-	mono_locks_release (&image->lock, ImageDataLock);
+	mono_locks_release (&image->lock.mutex, ImageDataLock);
 }
 
 
@@ -2185,7 +2188,7 @@ mono_image_property_lookup (MonoImage *image, gpointer subject, guint32 property
 	gpointer res;
 
 	mono_image_lock (image);
-	res = mono_property_hash_lookup (image->property_hash, subject, property);
+	res = mono_property_hash_lookup (fix(image->property_hash), subject, property);
  	mono_image_unlock (image);
 
 	return res;

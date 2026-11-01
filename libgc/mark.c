@@ -503,7 +503,7 @@ handle_ex:
 
           /* We have bad roots on the stack.  Discard mark stack.  */
           /* Rescan from marked objects.  Redetermine roots.	 */
-          GC_invalidate_mark_state();	
+          GC_invalidate_mark_state();
           scan_ptr = 0;
 
           ret_val = FALSE;
@@ -721,9 +721,14 @@ mse * mark_stack_limit;
 		mark_stack_top--;
 		continue;
 	    }
-            descr = *(word *)(type_descr
-			      - (descr - (GC_DS_PER_OBJECT
-					  - GC_INDIR_PER_OBJ_BIAS)));
+	      __try {
+	          descr = *(word *)(type_descr
+                                - (descr - (GC_DS_PER_OBJECT
+                                            - GC_INDIR_PER_OBJ_BIAS)));
+	      } __except(EXCEPTION_EXECUTE_HANDLER) {
+	          mark_stack_top--;
+	          continue;
+	      }
 	  }
 	  if (0 == descr) {
 	      /* Can happen either because we generated a 0 descriptor	*/

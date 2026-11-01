@@ -25,7 +25,8 @@
 #elif defined(ARM_FPU_NONE)
 #define ARM_FP_MODEL "soft-float"
 #else
-#error "At least one of ARM_FPU_NONE or ARM_FPU_FPA or ARM_FPU_VFP must be defined."
+#define ARM_FP_MODEL "fpa"
+//#error "At least one of ARM_FPU_NONE or ARM_FPU_FPA or ARM_FPU_VFP must be defined."
 #endif
 
 #define MONO_ARCH_ARCHITECTURE ARM_ARCHITECTURE "," ARM_FP_MODEL

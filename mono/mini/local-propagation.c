@@ -247,7 +247,7 @@ restart:
 						}
 					}
 				}
-				else if (((def->opcode == OP_ADD_IMM) || (def->opcode == OP_LADD_IMM)) && (MONO_IS_LOAD_MEMBASE (ins) || MONO_ARCH_IS_OP_MEMBASE (ins->opcode))) {
+				else if (((def->opcode == OP_ADD_IMM) || (def->opcode == OP_LADD_IMM)) && (MONO_IS_LOAD_MEMBASE (ins) /*|| MONO_ARCH_IS_OP_MEMBASE (ins->opcode)*/)) {
 					/* ADD_IMM is created by spill_global_vars */
 					/* 
 					 * We have to guarantee that def->sreg1 haven't changed since def->dreg

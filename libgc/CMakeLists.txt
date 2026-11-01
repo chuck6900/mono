@@ -22,7 +22,9 @@
 #
 
 # FIXME:
-add_definitions("-g -O2")
+#add_definitions("-g -O2")
+
+set(libgc_threads "win32")
 
 set(THREADS ${libgc_threads})
 
@@ -83,11 +85,12 @@ if (THREADS STREQUAL "posix" OR THREADS STREQUAL "pthreads")
 endif()
 
 if(THREADS STREQUAL "win32")
-  add_definitions(GC_WIN32_THREADS)
+  add_definitions(-DGC_WIN32_THREADS)
+  add_compile_definitions(GC_WIN32_THREADS)
   # Wine getenv may not return NULL for missing entry
-  add_definitions(NO_GETENV)
+  add_definitions(-DNO_GETENV)
   if (enable_win32_dllmain)
-	add_definitions(gc_inside_dll)
+	add_definitions(-Dgc_inside_dll)
   endif()
 endif()
 
@@ -101,7 +104,7 @@ endif()
 
 # Configuration of machine-dependent code
 
-ac_msg_checking("which machine-dependent code should be used")
+#ac_msg_checking("which machine-dependent code should be used")
 
 ###AC_MSG_CHECKING(
 ###machdep=
@@ -151,10 +154,10 @@ ac_msg_checking("which machine-dependent code should be used")
 if(NOT machdep)
   set(machdep "mach_dep.c")
 endif()
-ac_msg_result("${machdep}")
+#ac_msg_result("${machdep}")
 
-ac_msg_checking("for threads package to use")
-ac_msg_result("${THREADS}")
+#ac_msg_checking("for threads package to use")
+#ac_msg_result("${THREADS}")
 
 # Include defines that have become de facto standard.
 # ALL_INTERIOR_POINTERS can be overridden in startup code.
@@ -166,11 +169,7 @@ add_definitions(-DJAVA_FINALIZATION -DGC_GCJ_SUPPORT -DATOMIC_UNCOLLECTABLE)
 
 add_definitions(-D_IN_LIBGC)
 
-set(SUBDIRS include doc)
 
-foreach(dir ${SUBDIRS})
-  add_subdirectory(${dir})
-endforeach()
 
 set(top_srcdir ../)
 
@@ -193,4 +192,5 @@ set(libmonogc_la_SOURCES
   ${asm_libgc_sources} ${machdep})
 
 add_library(monogc-static STATIC ${libmonogc_la_SOURCES})
-target_link_libraries (${THREADDLLIBS} ${UNWINDLIBS})
+target_compile_definitions(monogc-static PRIVATE GC_BUILD)
+target_link_libraries (monogc-static ${THREADDLLIBS} ${UNWINDLIBS})

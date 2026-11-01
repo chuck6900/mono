@@ -54,7 +54,6 @@
 #include <string.h>
 #include <ctype.h>
 #include <locale.h>
-#include "version.h"
 #include "debugger-agent.h"
 
 static FILE *mini_stats_fd = NULL;
@@ -1209,8 +1208,8 @@ static const char info[] =
 #ifdef PLATFORM_WIN32
 BOOL APIENTRY DllMain (HMODULE module_handle, DWORD reason, LPVOID reserved)
 {
-	if (!GC_DllMain (module_handle, reason, reserved))
-		return FALSE;
+	// if (!GC_DllMain (module_handle, reason, reserved))
+	// 	return FALSE;
 
 	switch (reason)
 	{
@@ -1253,7 +1252,7 @@ mono_jit_parse_options (int argc, char * argv[])
  		if (strncmp (argv [i], "--debugger-agent=", 17) == 0) {
 			MonoDebugOptions *opt = mini_get_debug_options ();
 
- 			mono_debugger_agent_parse_options (argv [i] + 17);
+ 			//mono_debugger_agent_parse_options (argv [i] + 17);
 			opt->mdb_optimizations = TRUE;
 			enable_debugging = TRUE;
 		} else {
@@ -1496,7 +1495,7 @@ mono_main (int argc, char* argv[])
  		} else if (strncmp (argv [i], "--debugger-agent=", 17) == 0) {
 			MonoDebugOptions *opt = mini_get_debug_options ();
 
- 			mono_debugger_agent_parse_options (argv [i] + 17);
+ 			// mono_debugger_agent_parse_options (argv [i] + 17);
 			opt->mdb_optimizations = TRUE;
 			enable_debugging = TRUE;
 		} else if (strcmp (argv [i], "--security") == 0) {

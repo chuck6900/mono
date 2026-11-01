@@ -59,6 +59,7 @@ The advantage of this change is that it could have a _membase version and promot
 without a OP_LDADDR.
 */
 
+#undef MONO_ARCH_SIMD_INTRINSICS
 #ifdef MONO_ARCH_SIMD_INTRINSICS
 
 //#define IS_DEBUG_ON(cfg) (0)

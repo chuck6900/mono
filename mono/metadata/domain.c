@@ -36,6 +36,8 @@
 #include <metadata/profiler-private.h>
 #include <mono/metadata/coree.h>
 
+#include "mini/mini.h"
+
 /* #define DEBUG_DOMAIN_UNLOAD */
 
 /* we need to use both the Tls* functions and __thread because
@@ -138,7 +140,7 @@ static const MonoRuntimeInfo supported_runtimes[] = {
 
 
 /* The stable runtime version */
-#define DEFAULT_RUNTIME_VERSION "v1.1.4322"
+#define DEFAULT_RUNTIME_VERSION "v2.0.50215"
 
 /* Callbacks installed by the JIT */
 static MonoCreateDomainFunc create_domain_hook;
@@ -290,17 +292,23 @@ get_hazardous_pointer (gpointer volatile *pp, MonoThreadHazardPointers *hp, int 
 
 	for (;;) {
 		/* Get the pointer */
-		p = *pp;
+		p = fix(*pp);
 		/* If we don't have hazard pointers just return the
 		   pointer. */
 		if (!hp)
 			return p;
 		/* Make it hazardous */
-		mono_hazard_pointer_set (hp, hazard_index, p);
+		do
+		{
+		    g_assert ((hazard_index) == 0 || (hazard_index) == 1); (hp)->hazard_pointers [(hazard_index)] = (p); mono_memory_write_barrier ();
+		} while (0);
 		/* Check that it's still the same.  If not, try
 		   again. */
 		if (*pp != p) {
-			mono_hazard_pointer_clear (hp, hazard_index);
+			do
+			{
+			    g_assert ((hazard_index) == 0 || (hazard_index) == 1); (hp)->hazard_pointers [(hazard_index)] = NULL;
+			} while (0);
 			continue;
 		}
 		break;
@@ -332,15 +340,15 @@ get_hazardous_pointer (gpointer volatile *pp, MonoThreadHazardPointers *hp, int 
 static int
 jit_info_table_index (MonoJitInfoTable *table, gint8 *addr)
 {
-	int left = 0, right = table->num_chunks;
+	int left = 0, right = fix_v(table->num_chunks);
 
 	g_assert (left < right);
 
 	do {
 		int pos = (left + right) / 2;
-		MonoJitInfoTableChunk *chunk = table->chunks [pos];
+		MonoJitInfoTableChunk *chunk = fix(table->chunks [pos]);
 
-		if (addr < chunk->last_code_end)
+		if (addr < fix_v(chunk->last_code_end))
 			right = pos;
 		else
 			left = pos + 1;
@@ -355,12 +363,12 @@ jit_info_table_index (MonoJitInfoTable *table, gint8 *addr)
 static int
 jit_info_table_chunk_index (MonoJitInfoTableChunk *chunk, MonoThreadHazardPointers *hp, gint8 *addr)
 {
-	int left = 0, right = chunk->num_elements;
+	int left = 0, right = fix_v(chunk->num_elements);
 
 	while (left < right) {
 		int pos = (left + right) / 2;
-		MonoJitInfo *ji = get_hazardous_pointer((gpointer volatile*)&chunk->data [pos], hp, JIT_INFO_HAZARD_INDEX);
-		gint8 *code_end = (gint8*)ji->code_start + ji->code_size;
+		MonoJitInfo *ji = get_hazardous_pointer((gpointer volatile*)&chunk->data[pos], hp, JIT_INFO_HAZARD_INDEX);
+		gint8 *code_end = (gint8*)fix_v(ji->code_start) + fix_v(ji->code_size);
 
 		if (addr < code_end)
 			right = pos;
@@ -375,6 +383,7 @@ jit_info_table_chunk_index (MonoJitInfoTableChunk *chunk, MonoThreadHazardPointe
 MonoJitInfo*
 mono_jit_info_table_find (MonoDomain *domain, char *addr)
 {
+    addr = (char*)_byteswap_ulong((uint32_t)addr);
 	MonoJitInfoTable *table;
 	MonoJitInfo *ji;
 	int chunk_pos, pos;
@@ -398,12 +407,14 @@ mono_jit_info_table_find (MonoDomain *domain, char *addr)
 	   table by a hazard pointer and make sure that the pointer is
 	   still there after we've made it hazardous, we don't have to
 	   worry about the writer freeing the table. */
-	table = domain->jit_info_table;
+	table = fix(domain->jit_info_table);
 
 	chunk_pos = jit_info_table_index (table, (gint8*)addr);
-	g_assert (chunk_pos < table->num_chunks);
+	g_assert (chunk_pos < fix_v(table->num_chunks));
 
-	pos = jit_info_table_chunk_index (table->chunks [chunk_pos], hp, (gint8*)addr);
+
+
+	pos = jit_info_table_chunk_index (fix(table->chunks[chunk_pos]), hp, (gint8*)addr);
 
 	/* We now have a position that's very close to that of the
 	   first element whose end address is higher than the one
@@ -413,15 +424,15 @@ mono_jit_info_table_find (MonoDomain *domain, char *addr)
 	do {
 		MonoJitInfoTableChunk *chunk = table->chunks [chunk_pos];
 
-		while (pos < chunk->num_elements) {
-			ji = chunk->data [pos];
+		while (pos < fix_v(chunk->num_elements)) {
+			ji = fix(chunk->data [pos]);
 			++pos;
 
 			if (IS_JIT_INFO_TOMBSTONE (ji)) {
 				continue;
 			}
-			if ((gint8*)addr >= (gint8*)ji->code_start
-					&& (gint8*)addr < (gint8*)ji->code_start + ji->code_size) {
+			if ((gint8*)addr >= (gint8*)fix_v(ji->code_start)
+					&& (gint8*)addr < (gint8*)fix_v(ji->code_start) + fix_v(ji->code_size)) {
 				mono_domain_unlock (domain);
 				return ji;
 			}
@@ -1203,10 +1214,15 @@ mono_domain_create (void)
 	domain->track_resurrection_handles_hash = g_hash_table_new (mono_aligned_addr_hash, NULL);
 #endif
 
-	InitializeCriticalSection (&domain->lock);
-	InitializeCriticalSection (&domain->assemblies_lock);
-	InitializeCriticalSection (&domain->jit_code_hash_lock);
-	InitializeCriticalSection (&domain->finalizable_objects_hash_lock);
+    domain->lock.mutex = malloc(sizeof(CRITICAL_SECTION));
+    domain->assemblies_lock.mutex = malloc(sizeof(CRITICAL_SECTION));
+    domain->jit_code_hash_lock.mutex = malloc(sizeof(CRITICAL_SECTION));
+    domain->finalizable_objects_hash_lock.mutex = malloc(sizeof(CRITICAL_SECTION));
+
+	InitializeCriticalSection (domain->lock.mutex);
+	InitializeCriticalSection (domain->assemblies_lock.mutex);
+	InitializeCriticalSection (domain->jit_code_hash_lock.mutex);
+	InitializeCriticalSection (domain->finalizable_objects_hash_lock.mutex);
 
 	domain->method_rgctx_hash = NULL;
 
@@ -2016,10 +2032,10 @@ mono_domain_free (MonoDomain *domain, gboolean force)
 		domain->generic_virtual_cases = NULL;
 	}
 
-	DeleteCriticalSection (&domain->finalizable_objects_hash_lock);
-	DeleteCriticalSection (&domain->assemblies_lock);
-	DeleteCriticalSection (&domain->jit_code_hash_lock);
-	DeleteCriticalSection (&domain->lock);
+	DeleteCriticalSection (domain->finalizable_objects_hash_lock.mutex);
+	DeleteCriticalSection (domain->assemblies_lock.mutex);
+	DeleteCriticalSection (domain->jit_code_hash_lock.mutex);
+	DeleteCriticalSection (domain->lock.mutex);
 	domain->setup = NULL;
 
 	mono_gc_deregister_root_size ((char*)&(domain->MONO_DOMAIN_FIRST_GC_TRACKED), G_STRUCT_OFFSET (MonoDomain, MONO_DOMAIN_LAST_GC_TRACKED) - G_STRUCT_OFFSET (MonoDomain, MONO_DOMAIN_FIRST_GC_TRACKED));

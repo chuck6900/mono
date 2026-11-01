@@ -599,7 +599,7 @@ mono_debug_add_method (MonoMethod *method, MonoDebugMethodJitInfo *jit, MonoDoma
 	    (method->iflags & METHOD_IMPL_ATTRIBUTE_RUNTIME) ||
 	    (method->flags & METHOD_ATTRIBUTE_PINVOKE_IMPL) ||
 	    (method->flags & METHOD_ATTRIBUTE_ABSTRACT) ||
-	    (method->wrapper_type != MONO_WRAPPER_NONE)) {
+	    (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE)) {
 		is_wrapper = TRUE;
 	}
 

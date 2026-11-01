@@ -9,6 +9,8 @@
 
 #include "mono-property-hash.h"
 
+#include "mini/mini.h"
+
 struct _MonoPropertyHash {
 	/* We use one hash table per property */
 	GHashTable *hashes;
@@ -76,7 +78,7 @@ mono_property_hash_lookup (MonoPropertyHash *hash, gpointer object, guint32 prop
 {
 	GHashTable *prop_hash;
 
-	prop_hash = g_hash_table_lookup (hash->hashes, GUINT_TO_POINTER (property));
+	prop_hash = g_hash_table_lookup (fix(hash->hashes), GUINT_TO_POINTER (property));
 	if (!prop_hash)
 		return NULL;
 	return g_hash_table_lookup (prop_hash, object);

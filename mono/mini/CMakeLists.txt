@@ -132,7 +132,7 @@ set(common_sources
 	method-to-ir.c	
 	decompose.c	
 	mini.h		
-	version.h	
+	#version.h
 	optflags-def.h	
 	jit-icalls.h 	
 	jit-icalls.c 	
@@ -206,7 +206,7 @@ elseif(X86)
 set(mono_debugger_arch_sources mdb-debug-info32.s)
 endif()
 enable_language(ASM-ATT)
-set(mono_debugger_sources debug-debugger.c debug-debugger.h ${mono_debugger_arch_sources})
+set(mono_debugger_sources debug-debugger.c debugger-agent.c debugger-agent.h debug-debugger.h ${mono_debugger_arch_sources})
 
 set(ASM-ATT_FLAGS)
 else(MONO_DEBUGGER_SUPPORTED)
@@ -315,13 +315,13 @@ endif()
 ###if CROSS_COMPILING
 ###GENMDESC_PRG=perl ${srcdir)/genmdesc.pl ${arch_define} ${srcdir)
 ###else !CROSS_COMPILING
-set(GENMDESC_PRG ${CMAKE_CURRENT_BINARY_DIR}/genmdesc)
+set(GENMDESC_PRG ${CMAKE_CURRENT_BINARY_DIR}/genmdesc.exe)
 ###endif !CROSS_COMPILING
 
 function(add_genmdesc_target target source define)
   add_custom_command(
 	OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${target}
-	COMMAND ${GENMDESC_PRG} ${CMAKE_CURRENT_BINARY_DIR}/${target} ${define} ${source}
+	COMMAND ${GENMDESC_PRG} ${CMAKE_CURRENT_SOURCE_DIR}/${target} ${define} ${CMAKE_CURRENT_SOURCE_DIR}/${source}
 	DEPENDS genmdesc ${source}
 	)
 endfunction()
@@ -349,7 +349,8 @@ target_link_libraries(genmdesc monoutils-static monoruntime-static ${GLIB2_LIBRA
 
 # libmono
 
-set(libmono_la_SOURCES ${common_sources} ${llvm_sources} ${arch_sources} ${os_sources})
+set(libmono_la_SOURCES ${common_sources} ${llvm_sources} ${arch_sources} ${os_sources}
+        cpu_ppc.h)
 
 # FIXME: cmake doesn't seem to recognize the ${arch_built} dependency
 add_library(libmono-static STATIC ${libmono_la_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/${arch_built})
@@ -398,30 +399,30 @@ file(WRITE create-version.h.sh "
 ")
 
 # FIXME: dependencies ?
-add_custom_command(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.h
-  COMMAND chmod a+x ./create-version.h.sh
-  COMMAND ./create-version.h.sh
-  VERBATIM
-)
+#add_custom_command(
+#  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.h
+#  COMMAND chmod a+x ./create-version.h.sh
+#  COMMAND ./create-version.h.sh
+#  VERBATIM
+#)
 
 # buildver.h
 
 # We build this after libmono was built so it contains the date when the final
 # link was done
-add_custom_command(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/buildver.h
-  PRE_LINK
-  COMMAND sh -c "X='\"'; echo \"const char *build_date = $X`date`$X;\" > ${CMAKE_CURRENT_BINARY_DIR}/buildver.h"
-  DEPENDS libmono-static
-  VERBATIM
-)
+#add_custom_command(
+#  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/buildver.h
+#  PRE_LINK
+#  COMMAND sh -c "X='\"'; echo \"const char *build_date = $X`date`$X;\" > ${CMAKE_CURRENT_BINARY_DIR}/buildver.h"
+#  DEPENDS libmono-static
+#  VERBATIM
+#)
 set_source_files_properties(main.c PROPERTIES OBJECT_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/buildver.h)
 set_source_files_properties(main.c PROPERTIES OBJECT_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/buildver.h)
 
 # mono
 
-add_executable(mono main.c ${CMAKE_CURRENT_BINARY_DIR}/buildver.h)
+add_executable(mono main.c)
 add_dependencies(mono libmono-static)
 target_link_libraries(mono libmono-static ${GLIB2_LIBRARIES})
 
