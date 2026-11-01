@@ -959,15 +959,15 @@ generate(MonoMethod *method, RuntimeMethod *rtm, unsigned char *is_bb_start)
 			token = read32 (td.ip + 1);
 			if (calli) {
 				CHECK_STACK(&td, 1);
-				native = (method->wrapper_type != MONO_WRAPPER_DELEGATE_INVOKE && td.sp [-1].type == STACK_TYPE_I);
+				native = (mono_method_get_wrapper_type(method) != MONO_WRAPPER_DELEGATE_INVOKE && td.sp [-1].type == STACK_TYPE_I);
 				--td.sp;
-				if (method->wrapper_type != MONO_WRAPPER_NONE)
+				if (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE)
 					csignature = (MonoMethodSignature *)mono_method_get_wrapper_data (method, token);
 				else
 					csignature = mono_metadata_parse_signature (image, token);
 				m = NULL;
 			} else {
-				if (method->wrapper_type == MONO_WRAPPER_NONE)
+				if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_NONE)
 					m = mono_get_method_full (image, token, NULL, generic_context);
 				else
 					m = (MonoMethod *)mono_method_get_wrapper_data (method, token);
@@ -1029,7 +1029,7 @@ generate(MonoMethod *method, RuntimeMethod *rtm, unsigned char *is_bb_start)
 					}
 				}
 			}
-			if (method->wrapper_type == MONO_WRAPPER_NONE && m != NULL) {
+			if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_NONE && m != NULL) {
 				if (m->flags & METHOD_ATTRIBUTE_PINVOKE_IMPL)
 					m = mono_marshal_get_native_wrapper (m);
 				if (!virtual && m->iflags & METHOD_IMPL_ATTRIBUTE_SYNCHRONIZED)
@@ -1040,7 +1040,7 @@ generate(MonoMethod *method, RuntimeMethod *rtm, unsigned char *is_bb_start)
 			for (i = 0; i < csignature->param_count; ++i) {
 				if (td.sp [i + csignature->hasthis].type == STACK_TYPE_VT) {
 					gint32 size;
-					if (csignature->pinvoke && method->wrapper_type != MONO_WRAPPER_NONE)
+					if (csignature->pinvoke && mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE)
 						size = mono_class_native_size (csignature->params [i]->data.klass, NULL);
 					else
 						size = mono_class_value_size (csignature->params [i]->data.klass, NULL);
@@ -1054,7 +1054,7 @@ generate(MonoMethod *method, RuntimeMethod *rtm, unsigned char *is_bb_start)
 				int mt = mint_type(csignature->ret);
 				MonoClass *klass = NULL;
 				if (mt == MINT_TYPE_VT) {
-					if (csignature->pinvoke && method->wrapper_type != MONO_WRAPPER_NONE)
+					if (csignature->pinvoke && mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE)
 						vt_res_size = mono_class_native_size (csignature->ret->data.klass, NULL);
 					else
 						vt_res_size = mono_class_value_size (csignature->ret->data.klass, NULL);
@@ -1673,7 +1673,7 @@ generate(MonoMethod *method, RuntimeMethod *rtm, unsigned char *is_bb_start)
 
 			token = read32 (td.ip + 1);
 
-			if (method->wrapper_type != MONO_WRAPPER_NONE)
+			if (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE)
 				klass = (MonoClass *)mono_method_get_wrapper_data (method, token);
 			else
 				klass = mono_class_get_full (image, token, generic_context);
@@ -1692,7 +1692,7 @@ generate(MonoMethod *method, RuntimeMethod *rtm, unsigned char *is_bb_start)
 			MonoString *s;
 			token = mono_metadata_token_index (read32 (td.ip + 1));
 			td.ip += 5;
-			if (method->wrapper_type != MONO_WRAPPER_NONE) {
+			if (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE) {
 				s = mono_string_new_wrapper(
 					mono_method_get_wrapper_data (method, token));
 			}
@@ -1713,7 +1713,7 @@ generate(MonoMethod *method, RuntimeMethod *rtm, unsigned char *is_bb_start)
 			token = read32 (td.ip);
 			td.ip += 4;
 
-			if (method->wrapper_type != MONO_WRAPPER_NONE)
+			if (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE)
 				m = (MonoMethod *)mono_method_get_wrapper_data (method, token);
 			else 
 				m = mono_get_method_full (image, token, NULL, generic_context);
@@ -1781,7 +1781,7 @@ generate(MonoMethod *method, RuntimeMethod *rtm, unsigned char *is_bb_start)
 			CHECK_STACK (&td, 1);
 			token = read32 (td.ip + 1);
 			
-			if (method->wrapper_type != MONO_WRAPPER_NONE)
+			if (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE)
 				klass = (MonoClass *)mono_method_get_wrapper_data (method, token);
 			else 
 				klass = mono_class_get_full (image, token, generic_context);
@@ -1907,7 +1907,7 @@ generate(MonoMethod *method, RuntimeMethod *rtm, unsigned char *is_bb_start)
 			int size;
 			token = read32 (td.ip + 1);
 
-			if (method->wrapper_type != MONO_WRAPPER_NONE)
+			if (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE)
 				klass = (MonoClass *)mono_method_get_wrapper_data (method, token);
 			else
 				klass = mono_class_get_full (image, token, generic_context);
@@ -1970,7 +1970,7 @@ generate(MonoMethod *method, RuntimeMethod *rtm, unsigned char *is_bb_start)
 			int size;
 			CHECK_STACK (&td, 1);
 			token = read32 (td.ip + 1);
-			if (method->wrapper_type != MONO_WRAPPER_NONE)
+			if (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE)
 				klass = (MonoClass *)mono_method_get_wrapper_data (method, token);
 			else
 				klass = mono_class_get_full (image, token, generic_context);
@@ -1990,7 +1990,7 @@ generate(MonoMethod *method, RuntimeMethod *rtm, unsigned char *is_bb_start)
 			CHECK_STACK (&td, 1);
 			token = read32 (td.ip + 1);
 
-			if (method->wrapper_type != MONO_WRAPPER_NONE)
+			if (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE)
 				klass = (MonoClass *)mono_method_get_wrapper_data (method, token);
 			else
 				klass = mono_class_get_full (image, token, generic_context);
@@ -2010,7 +2010,7 @@ generate(MonoMethod *method, RuntimeMethod *rtm, unsigned char *is_bb_start)
 			ENSURE_I4 (&td, 1);
 			token = read32 (td.ip + 1);
 
-			if (method->wrapper_type != MONO_WRAPPER_NONE)
+			if (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE)
 				klass = (MonoClass *)mono_method_get_wrapper_data (method, token);
 			else
 				klass = mono_class_get_full (image, token, generic_context);
@@ -2447,7 +2447,7 @@ generate(MonoMethod *method, RuntimeMethod *rtm, unsigned char *is_bb_start)
 			case CEE_MONO_VTADDR: {
 				int size;
 				CHECK_STACK (&td, 1);
-				if (method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE)
+				if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_NATIVE)
 					size = mono_class_native_size(td.sp [-1].klass, NULL);
 				else
 					size = mono_class_value_size(td.sp [-1].klass, NULL);
@@ -2591,12 +2591,12 @@ generate(MonoMethod *method, RuntimeMethod *rtm, unsigned char *is_bb_start)
 					--td.sp;
 				}
 				token = read32 (td.ip + 1);
-				if (method->wrapper_type != MONO_WRAPPER_NONE)
+				if (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE)
 					m = (MonoMethod *)mono_method_get_wrapper_data (method, token);
 				else 
 					m = mono_get_method_full (image, token, NULL, generic_context);
 
-				if (method->wrapper_type == MONO_WRAPPER_NONE && m->iflags & METHOD_IMPL_ATTRIBUTE_SYNCHRONIZED)
+				if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_NONE && m->iflags & METHOD_IMPL_ATTRIBUTE_SYNCHRONIZED)
 					m = mono_marshal_get_synchronized_wrapper (m);
 
 				ADD_CODE(&td, *td.ip == CEE_LDFTN ? MINT_LDFTN : MINT_LDVIRTFTN);
@@ -2912,12 +2912,12 @@ mono_interp_transform_method (RuntimeMethod *runtime_method, ThreadContext *cont
 			++ip;
 			break;
 		case MonoInlineString:
-			if (method->wrapper_type == MONO_WRAPPER_NONE)
+			if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_NONE)
 				mono_ldstr (domain, image, mono_metadata_token_index (read32 (ip + 1)));
 			ip += 5;
 			break;
 		case MonoInlineType:
-			if (method->wrapper_type == MONO_WRAPPER_NONE) {
+			if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_NONE) {
 				class = mono_class_get_full (image, read32 (ip + 1), generic_context);
 				mono_class_init (class);
 				/* quick fix to not do this for the fake ptr classes - probably should not be getting the vtable at all here */
@@ -2927,7 +2927,7 @@ mono_interp_transform_method (RuntimeMethod *runtime_method, ThreadContext *cont
 			ip += 5;
 			break;
 		case MonoInlineMethod:
-			if (method->wrapper_type == MONO_WRAPPER_NONE && *ip != CEE_CALLI) {
+			if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_NONE && *ip != CEE_CALLI) {
 				m = mono_get_method_full (image, read32 (ip + 1), NULL, generic_context);
 				if (m == NULL) {
 					g_free (is_bb_start);

@@ -3917,7 +3917,7 @@ mono_arch_emit_prolog (MonoCompile *cfg)
 		 * FIXME: Native code might pass non register sized integers 
 		 * without initializing the upper bits.
 		 */
-		if (method->wrapper_type == MONO_WRAPPER_NATIVE_TO_MANAGED && !arg_type->byref && ainfo->storage == ArgInIReg) {
+		if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_NATIVE_TO_MANAGED && !arg_type->byref && ainfo->storage == ArgInIReg) {
 			int reg = cfg->arch.reg_in0 + ainfo->reg;
 
 			switch (mono_type_to_load_membase (cfg, arg_type)) {

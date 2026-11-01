@@ -287,7 +287,7 @@ mono_find_jit_info (MonoDomain *domain, MonoJitTlsData *jit_tls, MonoJitInfo *re
 	if (ji == (gpointer)-1)
 		return ji;
 
-	if (managed2 || ji->method->wrapper_type) {
+	if (managed2 || ji->mono_method_get_wrapper_type(method)) {
 		const char *real_ip, *start;
 		gint32 offset;
 
@@ -307,7 +307,7 @@ mono_find_jit_info (MonoDomain *domain, MonoJitTlsData *jit_tls, MonoJitInfo *re
 			*native_offset = offset;
 
 		if (managed)
-			if (!ji->method->wrapper_type)
+			if (!ji->mono_method_get_wrapper_type(method))
 				*managed = TRUE;
 
 		if (trace)
@@ -363,7 +363,7 @@ mono_find_jit_info_ext (MonoDomain *domain, MonoJitTlsData *jit_tls,
 
 	ji = frame->ji;
 
-	if (ji && (frame->managed || ji->method->wrapper_type)) {
+	if (ji && (frame->managed || ji->mono_method_get_wrapper_type(method))) {
 		const char *real_ip, *start;
 
 		start = (const char *)ji->code_start;
@@ -563,7 +563,7 @@ ves_icall_get_trace (MonoException *exc, gint32 skip, MonoBoolean need_file_info
 		g_assert (ji != NULL);
 
 		method = get_method_from_stack_frame (ji, generic_info);
-		if (ji->method->wrapper_type) {
+		if (ji->mono_method_get_wrapper_type(method)) {
 			char *s;
 
 			sf->method = NULL;
@@ -816,16 +816,16 @@ ves_icall_get_frame_info (gint32 skip, MonoBoolean need_file_info,
 			return FALSE;
 
 		/* skip all wrappers ??*/
-		if (ji->method->wrapper_type == MONO_WRAPPER_RUNTIME_INVOKE ||
-		    ji->method->wrapper_type == MONO_WRAPPER_XDOMAIN_INVOKE ||
-		    ji->method->wrapper_type == MONO_WRAPPER_XDOMAIN_DISPATCH ||
-		    ji->method->wrapper_type == MONO_WRAPPER_REMOTING_INVOKE_WITH_CHECK ||
-		    ji->method->wrapper_type == MONO_WRAPPER_REMOTING_INVOKE ||
-			ji->method->wrapper_type == MONO_WRAPPER_NATIVE_TO_MANAGED ||
-			ji->method->wrapper_type == MONO_WRAPPER_DELEGATE_INVOKE)
+		if (ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_RUNTIME_INVOKE ||
+		    ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_XDOMAIN_INVOKE ||
+		    ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_XDOMAIN_DISPATCH ||
+		    ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_REMOTING_INVOKE_WITH_CHECK ||
+		    ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_REMOTING_INVOKE ||
+			ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_NATIVE_TO_MANAGED ||
+			ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_DELEGATE_INVOKE)
 			continue;
 
-		if (ji->method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE && ji->method == last_method) {
+		if (ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_NATIVE && ji->method == last_method) {
 			/*
 			 * FIXME: Native-to-managed wrappers sometimes show up twice.
 			 * Probably the whole mono_find_jit_info () stuff needs to be fixed so this 
@@ -877,11 +877,11 @@ callback_get_first_frame_security_info (MonoDomain *domain, MonoContext *ctx, Mo
 	MonoFrameSecurityInfo *si = (MonoFrameSecurityInfo*) data;
 
 	/* FIXME: skip all wrappers ?? probably not - case by case testing is required */
-	if (ji->method->wrapper_type == MONO_WRAPPER_RUNTIME_INVOKE ||
-	    ji->method->wrapper_type == MONO_WRAPPER_XDOMAIN_INVOKE ||
-	    ji->method->wrapper_type == MONO_WRAPPER_XDOMAIN_DISPATCH ||
-	    ji->method->wrapper_type == MONO_WRAPPER_REMOTING_INVOKE_WITH_CHECK ||
-	    ji->method->wrapper_type == MONO_WRAPPER_REMOTING_INVOKE) {
+	if (ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_RUNTIME_INVOKE ||
+	    ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_XDOMAIN_INVOKE ||
+	    ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_XDOMAIN_DISPATCH ||
+	    ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_REMOTING_INVOKE_WITH_CHECK ||
+	    ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_REMOTING_INVOKE) {
 		return FALSE;
 	}
 
@@ -961,11 +961,11 @@ callback_get_stack_frames_security_info (MonoDomain *domain, MonoContext *ctx, M
 	MonoSecurityStack *ss = (MonoSecurityStack*) data;
 
 	/* FIXME: skip all wrappers ?? probably not - case by case testing is required */
-	if (ji->method->wrapper_type == MONO_WRAPPER_RUNTIME_INVOKE ||
-	    ji->method->wrapper_type == MONO_WRAPPER_XDOMAIN_INVOKE ||
-	    ji->method->wrapper_type == MONO_WRAPPER_XDOMAIN_DISPATCH ||
-	    ji->method->wrapper_type == MONO_WRAPPER_REMOTING_INVOKE_WITH_CHECK ||
-	    ji->method->wrapper_type == MONO_WRAPPER_REMOTING_INVOKE) {
+	if (ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_RUNTIME_INVOKE ||
+	    ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_XDOMAIN_INVOKE ||
+	    ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_XDOMAIN_DISPATCH ||
+	    ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_REMOTING_INVOKE_WITH_CHECK ||
+	    ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_REMOTING_INVOKE) {
 		return FALSE;
 	}
 
@@ -1244,7 +1244,7 @@ mono_handle_exception_internal (MonoContext *ctx, gpointer obj, gpointer origina
 			frame_count ++;
 			//printf ("M: %s %d %d.\n", mono_method_full_name (ji->method, TRUE), frame_count, test_only);
 
-			if (test_only && ji->method->wrapper_type != MONO_WRAPPER_RUNTIME_INVOKE && mono_ex) {
+			if (test_only && ji->mono_method_get_wrapper_type(method) != MONO_WRAPPER_RUNTIME_INVOKE && mono_ex) {
 				/* 
 				 * Avoid overwriting the stack trace if the exception is
 				 * rethrown. Also avoid giant stack traces during a stack
@@ -1450,7 +1450,7 @@ mono_debugger_handle_exception (MonoContext *ctx, MonoObject *obj)
 		 */
 
 		ret = mono_handle_exception_internal (&ctx_cp, obj, MONO_CONTEXT_GET_IP (ctx), TRUE, NULL, &ji);
-		if (ret && (ji != NULL) && (ji->method->wrapper_type == MONO_WRAPPER_RUNTIME_INVOKE)) {
+		if (ret && (ji != NULL) && (ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_RUNTIME_INVOKE)) {
 			/*
 			 * The exception is handled in a runtime-invoke wrapper, that means that it's unhandled
 			 * inside the method being invoked, so we handle it like a user-unhandled exception.

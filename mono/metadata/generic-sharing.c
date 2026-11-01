@@ -522,7 +522,7 @@ inflate_other_data (gpointer data, int info_type, MonoGenericContext *context, M
 
 		mono_class_init (inflated_class);
 
-		g_assert (!method->wrapper_type);
+		g_assert (!mono_method_get_wrapper_type(method));
 
 		if (inflated_class->byval_arg.type == MONO_TYPE_ARRAY ||
 				inflated_class->byval_arg.type == MONO_TYPE_SZARRAY) {
@@ -1343,14 +1343,14 @@ gboolean
 mono_method_is_generic_impl (MonoMethod *method)
 {
 	if (mono_method_get_is_inflated(method)) {
-		g_assert (method->wrapper_type == MONO_WRAPPER_NONE);
+		g_assert (mono_method_get_wrapper_type(method) == MONO_WRAPPER_NONE);
 		return TRUE;
 	}
 	/* We don't treat wrappers as generic code, i.e., we never
 	   apply generic sharing to them.  This is especially
 	   important for static rgctx invoke wrappers, which only work
 	   if not compiled with sharing. */
-	if (method->wrapper_type != MONO_WRAPPER_NONE)
+	if (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE)
 		return FALSE;
 	if (method->klass->generic_container)
 		return TRUE;

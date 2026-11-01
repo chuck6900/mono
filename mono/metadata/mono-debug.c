@@ -672,7 +672,7 @@ mono_debug_add_method (MonoMethod *method, MonoDebugMethodJitInfo *jit, MonoDoma
 
 			header->wrapper_data = wrapper = g_new0 (MonoDebugWrapperData, 1);
 
-			wrapper->wrapper_type = method->wrapper_type;
+			wrapper->wrapper_type = mono_method_get_wrapper_type(method);
 			wrapper->method_name = mono_method_full_name (declaring, TRUE);
 			wrapper->cil_code = mono_disasm_code (
 				NULL, declaring, il_code, il_code + il_codesize);

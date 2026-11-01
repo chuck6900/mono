@@ -2004,7 +2004,7 @@ mono_method_get_wrapper_data (MonoMethod *method, guint32 id)
 {
 	void **data;
 	g_assert (method != NULL);
-	g_assert (method->wrapper_type != MONO_WRAPPER_NONE);
+	g_assert (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE);
 
 	if (mono_method_get_is_inflated(method))
 		method = ((MonoMethodInflated *) method)->declaring;

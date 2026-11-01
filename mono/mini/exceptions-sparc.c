@@ -387,7 +387,7 @@ mono_arch_find_jit_info (MonoDomain *domain, MonoJitTlsData *jit_tls, MonoJitInf
 		*new_ctx = *ctx;
 
 		if (managed)
-			if (!ji->method->wrapper_type)
+			if (!ji->mono_method_get_wrapper_type(method))
 				*managed = TRUE;
 
 		if (*lmf && (MONO_CONTEXT_GET_BP (ctx) >= (gpointer)(*lmf)->ebp)) {

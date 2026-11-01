@@ -1490,8 +1490,8 @@ encode_method_ref (MonoAotCompile *acfg, MonoMethod *method, guint8 *buf, guint8
 	 * FIXME: Optimize disk usage
 	 */
 	name = NULL;
-	if (method->wrapper_type) {
-		if (method->wrapper_type == MONO_WRAPPER_RUNTIME_INVOKE) {
+	if (mono_method_get_wrapper_type(method)) {
+		if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_RUNTIME_INVOKE) {
 			char *tmpsig = mono_signature_get_desc (mono_method_signature (method), TRUE);
 			if (strcmp (method->name, "runtime_invoke_dynamic")) {
 				name = mono_aot_wrapper_name (method);
@@ -1501,15 +1501,15 @@ encode_method_ref (MonoAotCompile *acfg, MonoMethod *method, guint8 *buf, guint8
 				name = g_strdup_printf ("(wrapper runtime-invoke):%s (%s)", method->name, tmpsig);
 			}
 			g_free (tmpsig);
-		} else if (method->wrapper_type == MONO_WRAPPER_DELEGATE_INVOKE) {
+		} else if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_DELEGATE_INVOKE) {
 			char *tmpsig = mono_signature_get_desc (mono_method_signature (method), TRUE);
 			name = g_strdup_printf ("(wrapper delegate-invoke):%s (%s)", method->name, tmpsig);
 			g_free (tmpsig);
-		} else if (method->wrapper_type == MONO_WRAPPER_DELEGATE_BEGIN_INVOKE) {
+		} else if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_DELEGATE_BEGIN_INVOKE) {
 			char *tmpsig = mono_signature_get_desc (mono_method_signature (method), TRUE);
 			name = g_strdup_printf ("(wrapper delegate-begin-invoke):%s (%s)", method->name, tmpsig);
 			g_free (tmpsig);
-		} else if (method->wrapper_type == MONO_WRAPPER_DELEGATE_END_INVOKE) {
+		} else if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_DELEGATE_END_INVOKE) {
 			char *tmpsig = mono_signature_get_desc (mono_method_signature (method), TRUE);
 			name = g_strdup_printf ("(wrapper delegate-end-invoke):%s (%s)", method->name, tmpsig);
 			g_free (tmpsig);
@@ -1521,12 +1521,12 @@ encode_method_ref (MonoAotCompile *acfg, MonoMethod *method, guint8 *buf, guint8
 		strcpy ((char*)p, name);
 		p += strlen (name) + 1;
 		g_free (name);
-	} else if (method->wrapper_type) {
+	} else if (mono_method_get_wrapper_type(method)) {
 		encode_value ((MONO_AOT_METHODREF_WRAPPER << 24), p, &p);
 
-		encode_value (method->wrapper_type, p, &p);
+		encode_value (mono_method_get_wrapper_type(method), p, &p);
 
-		switch (method->wrapper_type) {
+		switch (mono_method_get_wrapper_type(method)) {
 		case MONO_WRAPPER_REMOTING_INVOKE:
 		case MONO_WRAPPER_REMOTING_INVOKE_WITH_CHECK:
 		case MONO_WRAPPER_XDOMAIN_INVOKE: {
@@ -1815,7 +1815,7 @@ add_method_with_index (MonoAotCompile *acfg, MonoMethod *method, int index, gboo
 		acfg->nmethods = acfg->methods->len + 1;
 	}
 
-	if (method->wrapper_type || extra)
+	if (mono_method_get_wrapper_type(method) || extra)
 		g_ptr_array_add (acfg->extra_methods, method);
 }
 
@@ -2618,7 +2618,7 @@ is_direct_callable (MonoAotCompile *acfg, MonoMethod *method, MonoJumpInfo *patc
 
 			if (direct_callable && !(!callee_cfg->has_got_slots && (callee_cfg->method->klass->flags & TYPE_ATTRIBUTE_BEFORE_FIELD_INIT)))
 				direct_callable = FALSE;
-			if ((callee_cfg->method->iflags & METHOD_IMPL_ATTRIBUTE_SYNCHRONIZED) && (!method || method->wrapper_type != MONO_WRAPPER_SYNCHRONIZED))
+			if ((callee_cfg->method->iflags & METHOD_IMPL_ATTRIBUTE_SYNCHRONIZED) && (!method || mono_method_get_wrapper_type(method) != MONO_WRAPPER_SYNCHRONIZED))
 				// FIXME: Maybe call the wrapper directly ?
 				direct_callable = FALSE;
 
@@ -2834,7 +2834,7 @@ emit_method_code (MonoAotCompile *acfg, MonoCompile *cfg)
 	if (acfg->aot_opts.full_aot && cfg->orig_method->klass->valuetype && (method->flags & METHOD_ATTRIBUTE_VIRTUAL)) {
 		char call_target [256];
 
-		if (!method->wrapper_type && !mono_method_get_is_inflated(method)) {
+		if (!mono_method_get_wrapper_type(method) && !mono_method_get_is_inflated(method)) {
 			g_assert (method->token);
 			sprintf (symbol, "ut_%d", mono_metadata_token_index (method->token) - 1);
 		} else {
@@ -3852,8 +3852,8 @@ can_encode_patch (MonoAotCompile *acfg, MonoJumpInfo *patch_info)
 	case MONO_PATCH_INFO_METHODCONST: {
 		MonoMethod *method = patch_info->data.method;
 
-		if (method->wrapper_type) {
-			switch (method->wrapper_type) {
+		if (mono_method_get_wrapper_type(method)) {
+			switch (mono_method_get_wrapper_type(method)) {
 			case MONO_WRAPPER_NONE:
 			case MONO_WRAPPER_REMOTING_INVOKE_WITH_CHECK:
 			case MONO_WRAPPER_XDOMAIN_INVOKE:
@@ -3937,7 +3937,7 @@ compile_method (MonoAotCompile *acfg, MonoMethod *method)
 	MonoMethod *wrapped;
 
 #if defined(PLATFORM_IPHONE_XCOMP)
-	if (acfg->aot_opts.ficall && method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE)
+	if (acfg->aot_opts.ficall && mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_NATIVE)
 	{
 		wrapped = mono_marshal_method_from_wrapper (method);
 		if (wrapped && (wrapped->iflags & METHOD_IMPL_ATTRIBUTE_INTERNAL_CALL) &&
@@ -4214,7 +4214,7 @@ compile_method (MonoAotCompile *acfg, MonoMethod *method)
 	g_hash_table_insert (acfg->method_to_cfg, cfg->orig_method, cfg);
 
 	/*
-	if (cfg->orig_method->wrapper_type)
+	if (cfg->orig_mono_method_get_wrapper_type(method))
 		g_ptr_array_add (acfg->extra_methods, cfg->orig_method);
 	*/
 
@@ -4520,12 +4520,12 @@ mono_aot_method_hash (MonoMethod *method)
 	hashes = hashes_start;
 
 	/* Some wrappers are assigned to random classes */
-	if (!method->wrapper_type || method->wrapper_type == MONO_WRAPPER_REMOTING_INVOKE_WITH_CHECK)
+	if (!mono_method_get_wrapper_type(method) || mono_method_get_wrapper_type(method) == MONO_WRAPPER_REMOTING_INVOKE_WITH_CHECK)
 		klass = method->klass;
 	else
 		klass = mono_defaults.object_class;
 
-	if (!method->wrapper_type) {
+	if (!mono_method_get_wrapper_type(method)) {
 		char *full_name = mono_type_full_name (&klass->byval_arg);
 
 		hashes [0] = mono_aot_str_hash (full_name);
@@ -4535,12 +4535,12 @@ mono_aot_method_hash (MonoMethod *method)
 		hashes [0] = mono_aot_str_hash (klass->name);
 		hashes [1] = mono_aot_str_hash (klass->name_space);
 	}
-	if (method->wrapper_type == MONO_WRAPPER_STFLD || method->wrapper_type == MONO_WRAPPER_LDFLD || method->wrapper_type == MONO_WRAPPER_LDFLDA)
+	if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_STFLD || mono_method_get_wrapper_type(method) == MONO_WRAPPER_LDFLD || mono_method_get_wrapper_type(method) == MONO_WRAPPER_LDFLDA)
 		/* The method name includes a stringified pointer */
 		hashes [2] = 0;
 	else
 		hashes [2] = mono_aot_str_hash (method->name);
-	hashes [3] = method->wrapper_type;
+	hashes [3] = mono_method_get_wrapper_type(method);
 	hashes [4] = mono_aot_type_hash (sig->ret);
 	for (i = 0; i < sig->param_count; i++) {
 		hashes [5 + i] = mono_aot_type_hash (sig->params [i]);
@@ -4589,7 +4589,7 @@ mono_aot_wrapper_name (MonoMethod *method)
 
 	tmpsig = mono_signature_get_desc (mono_method_signature (method), TRUE);
 
-	switch (method->wrapper_type) {
+	switch (mono_method_get_wrapper_type(method)) {
 	case MONO_WRAPPER_RUNTIME_INVOKE:
 		if (!strcmp (method->name, "runtime_invoke_dynamic"))
 			name = g_strdup_printf ("(wrapper runtime-invoke-dynamic)");
@@ -4704,13 +4704,13 @@ emit_extra_methods (MonoAotCompile *acfg)
 		info_offsets [i] = p - buf;
 
 		name = NULL;
-		if (method->wrapper_type) {
+		if (mono_method_get_wrapper_type(method)) {
 			/* 
 			 * We encode some wrappers using their name, since encoding them
 			 * directly would be difficult. This also avoids creating the wrapper
 			 * methods at runtime, since they are not needed anyway.
 			 */
-			switch (method->wrapper_type) {
+			switch (mono_method_get_wrapper_type(method)) {
 			case MONO_WRAPPER_REMOTING_INVOKE_WITH_CHECK:
 			case MONO_WRAPPER_SYNCHRONIZED:
 				/* encode_method_ref () can handle these */
@@ -4728,7 +4728,7 @@ emit_extra_methods (MonoAotCompile *acfg)
 
 		if (name) {
 			encode_value (1, p, &p);
-			encode_value (method->wrapper_type, p, &p);
+			encode_value (mono_method_get_wrapper_type(method), p, &p);
 			strcpy ((char*)p, name);
 			p += strlen (name ) + 1;
 			g_free (name);
@@ -5468,7 +5468,7 @@ collect_methods (MonoAotCompile *acfg)
 
 		/* FIXME: Some mscorlib methods don't have debug info */
 		/*
-		if (acfg->aot_opts.soft_debug && !method->wrapper_type) {
+		if (acfg->aot_opts.soft_debug && !mono_method_get_wrapper_type(method)) {
 			if (!((method->flags & METHOD_ATTRIBUTE_PINVOKE_IMPL) ||
 				  (method->iflags & METHOD_IMPL_ATTRIBUTE_RUNTIME) ||
 				  (method->flags & METHOD_ATTRIBUTE_ABSTRACT) ||

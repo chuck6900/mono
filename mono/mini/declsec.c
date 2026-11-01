@@ -19,11 +19,11 @@ mono_method_has_declsec (MonoMethod *method)
 {
 	mono_jit_stats.cas_declsec_check++;
 
-	if (method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE || method->wrapper_type == MONO_WRAPPER_MANAGED_TO_MANAGED) {
+	if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_NATIVE || mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_MANAGED) {
 		method = mono_marshal_method_from_wrapper (method);
 		if (!method)
 			return FALSE;
-	} else if (method->wrapper_type != MONO_WRAPPER_NONE)
+	} else if (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE)
 		return FALSE;
 
 	if ((method->klass->flags & TYPE_ATTRIBUTE_HAS_SECURITY) || (method->flags & METHOD_ATTRIBUTE_HAS_SECURITY)) {

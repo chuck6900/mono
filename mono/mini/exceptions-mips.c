@@ -441,7 +441,7 @@ mono_arch_find_jit_info (MonoDomain *domain, MonoJitTlsData *jit_tls,
 		address = (char *)ip - (char *)ji->code_start;
 
 		if (managed)
-			if (!ji->method->wrapper_type)
+			if (!ji->mono_method_get_wrapper_type(method))
 				*managed = TRUE;
 
 		/* My stack frame */

@@ -1352,7 +1352,7 @@ mono_arch_allocate_vars (MonoCompile *m)
 	 * non-varargs signatures. Since there is little hope people will get this right
 	 * we assume they won't.
 	 */
-	if (m->method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE)
+	if (m->mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_NATIVE)
 		m->param_area = MAX (m->param_area, sizeof (gpointer)*8);
 
 	header = mono_method_get_header (m->method);
@@ -5176,7 +5176,7 @@ mono_arch_emit_prolog (MonoCompile *cfg)
 		pos++;
 	}
 
-	if (method->wrapper_type == MONO_WRAPPER_NATIVE_TO_MANAGED) {
+	if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_NATIVE_TO_MANAGED) {
 		ppc_load (code, ppc_r3, cfg->domain);
 		mono_add_patch_info (cfg, code - cfg->native_code, MONO_PATCH_INFO_INTERNAL_METHOD, (gpointer)"mono_jit_thread_attach");
 		if ((FORCE_INDIR_CALL || cfg->method->dynamic) && !cfg->compile_aot) {

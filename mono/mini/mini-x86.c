@@ -4512,7 +4512,7 @@ mono_arch_emit_prolog (MonoCompile *cfg)
 	alloc_size = cfg->stack_offset;
 	pos = 0;
 
-	if (method->wrapper_type == MONO_WRAPPER_NATIVE_TO_MANAGED) {
+	if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_NATIVE_TO_MANAGED) {
 		/* Might need to attach the thread to the JIT  or change the domain for the callback */
 		if (appdomain_tls_offset != -1 && lmf_tls_offset != -1) {
 			guint8 *buf, *no_domain_branch;
@@ -4691,14 +4691,14 @@ mono_arch_emit_prolog (MonoCompile *cfg)
 		g_assert (need_stack_frame);
 	}
 
-	if (cfg->method->wrapper_type == MONO_WRAPPER_NATIVE_TO_MANAGED ||
-			cfg->method->wrapper_type == MONO_WRAPPER_RUNTIME_INVOKE) {
+	if (cfg->mono_method_get_wrapper_type(method) == MONO_WRAPPER_NATIVE_TO_MANAGED ||
+			cfg->mono_method_get_wrapper_type(method) == MONO_WRAPPER_RUNTIME_INVOKE) {
 		x86_alu_reg_imm (code, X86_AND, X86_ESP, -MONO_ARCH_FRAME_ALIGNMENT);
 	}
 
 #if DEBUG_STACK_ALIGNMENT
 	/* check the stack is aligned */
-	if (need_stack_frame && method->wrapper_type == MONO_WRAPPER_NONE) {
+	if (need_stack_frame && mono_method_get_wrapper_type(method) == MONO_WRAPPER_NONE) {
 		x86_mov_reg_reg (code, X86_ECX, X86_ESP, 4);
 		x86_alu_reg_imm (code, X86_AND, X86_ECX, MONO_ARCH_FRAME_ALIGNMENT - 1);
 		x86_alu_reg_imm (code, X86_CMP, X86_ECX, 0);

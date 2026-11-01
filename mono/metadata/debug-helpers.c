@@ -784,16 +784,16 @@ mono_method_full_name (MonoMethod *method, gboolean signature)
 		g_string_free (str, FALSE);
 	}
 
-	if (method->wrapper_type != MONO_WRAPPER_NONE)
-		sprintf (wrapper, "(wrapper %s) ", wrapper_type_to_str (method->wrapper_type));
+	if (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE)
+		sprintf (wrapper, "(wrapper %s) ", wrapper_type_to_str (mono_method_get_wrapper_type(method)));
 	else
 		strcpy (wrapper, "");
 
 	if (signature) {
 		char *tmpsig = mono_signature_get_desc (mono_method_signature (method), TRUE);
 
-		if (method->wrapper_type != MONO_WRAPPER_NONE)
-			sprintf (wrapper, "(wrapper %s) ", wrapper_type_to_str (method->wrapper_type));
+		if (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE)
+			sprintf (wrapper, "(wrapper %s) ", wrapper_type_to_str (mono_method_get_wrapper_type(method)));
 		else
 			strcpy (wrapper, "");
 		res = g_strdup_printf ("%s%s:%s%s (%s)", wrapper, klass_desc, 

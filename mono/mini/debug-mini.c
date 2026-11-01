@@ -607,7 +607,7 @@ mono_debug_add_aot_method (MonoDomain *domain, MonoMethod *method, guint8 *code_
 	    (method->iflags & METHOD_IMPL_ATTRIBUTE_RUNTIME) ||
 	    (method->flags & METHOD_ATTRIBUTE_PINVOKE_IMPL) ||
 	    (method->flags & METHOD_ATTRIBUTE_ABSTRACT) ||
-	    (method->wrapper_type != MONO_WRAPPER_NONE))
+	    (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE))
 		return;
 
 	if (debug_info_len == 0)
@@ -759,8 +759,8 @@ mono_debugger_method_has_breakpoint (MonoMethod *method)
 {
 	int i;
 
-	if (!breakpoints || ((method->wrapper_type != MONO_WRAPPER_NONE) &&
-						 (method->wrapper_type != MONO_WRAPPER_DYNAMIC_METHOD)))
+	if (!breakpoints || ((mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE) &&
+						 (mono_method_get_wrapper_type(method) != MONO_WRAPPER_DYNAMIC_METHOD)))
 		return 0;
 
 	for (i = 0; i < breakpoints->len; i++) {

@@ -65,7 +65,7 @@
 #define BRANCH_COST 100
 #define INLINE_LENGTH_LIMIT 20
 #define INLINE_FAILURE do {\
-		if ((cfg->method != method) && (method->wrapper_type == MONO_WRAPPER_NONE))\
+		if ((cfg->method != method) && (mono_method_get_wrapper_type(method) == MONO_WRAPPER_NONE))\
 			goto inline_failure;\
 	} while (0)
 #define CHECK_CFG_EXCEPTION do {\
@@ -2310,7 +2310,7 @@ mono_emit_method_call_full (MonoCompile *cfg, MonoMethod *method, MonoMethodSign
 		if ((!cfg->compile_aot || enable_for_aot) && 
 			(!(method->flags & METHOD_ATTRIBUTE_VIRTUAL) || 
 			 (MONO_METHOD_IS_FINAL (method) &&
-			  method->wrapper_type != MONO_WRAPPER_REMOTING_INVOKE_WITH_CHECK)) &&
+			  mono_method_get_wrapper_type(method) != MONO_WRAPPER_REMOTING_INVOKE_WITH_CHECK)) &&
 			!(method->klass->marshalbyref && context_used)) {
 			/* 
 			 * the method is not virtual, we just need to ensure this is not null
@@ -3995,7 +3995,7 @@ mini_emit_inst_for_method (MonoCompile *cfg, MonoMethod *cmethod, MonoMethodSign
 		MonoMethod *fast_method = NULL;
 
 		/* Avoid infinite recursion */
-		if (cfg->method->wrapper_type == MONO_WRAPPER_UNKNOWN &&
+		if (cfg->mono_method_get_wrapper_type(method) == MONO_WRAPPER_UNKNOWN &&
 				(strcmp (cfg->method->name, "FastMonitorEnter") == 0 ||
 				 strcmp (cfg->method->name, "FastMonitorExit") == 0))
 			return NULL;
@@ -4695,7 +4695,7 @@ mini_get_class (MonoMethod *method, guint32 token, MonoGenericContext *context)
 {
 	MonoClass *klass;
 
-	if (method->wrapper_type != MONO_WRAPPER_NONE)
+	if (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE)
 		klass = mono_method_get_wrapper_data (method, token);
 	else
 		klass = mono_class_get_full (method->klass->image, token, context);
@@ -4769,11 +4769,11 @@ emit_throw_exception (MonoCompile *cfg, MonoException *ex)
 static MonoMethod*
 get_original_method (MonoMethod *method)
 {
-	if (method->wrapper_type == MONO_WRAPPER_NONE)
+	if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_NONE)
 		return method;
 
 	/* native code (which is like Critical) can call any managed method XXX FIXME XXX to validate all usages */
-	if (method->wrapper_type == MONO_WRAPPER_NATIVE_TO_MANAGED)
+	if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_NATIVE_TO_MANAGED)
 		return NULL;
 
 	/* in other cases we need to find the original method */
@@ -5445,18 +5445,18 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 
 	/* serialization and xdomain stuff may need access to private fields and methods */
 	dont_verify = method->klass->image->assembly->corlib_internal? TRUE: FALSE;
-	dont_verify |= method->wrapper_type == MONO_WRAPPER_XDOMAIN_INVOKE;
-	dont_verify |= method->wrapper_type == MONO_WRAPPER_XDOMAIN_DISPATCH;
- 	dont_verify |= method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE; /* bug #77896 */
-	dont_verify |= method->wrapper_type == MONO_WRAPPER_COMINTEROP;
-	dont_verify |= method->wrapper_type == MONO_WRAPPER_COMINTEROP_INVOKE;
+	dont_verify |= mono_method_get_wrapper_type(method) == MONO_WRAPPER_XDOMAIN_INVOKE;
+	dont_verify |= mono_method_get_wrapper_type(method) == MONO_WRAPPER_XDOMAIN_DISPATCH;
+ 	dont_verify |= mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_NATIVE; /* bug #77896 */
+	dont_verify |= mono_method_get_wrapper_type(method) == MONO_WRAPPER_COMINTEROP;
+	dont_verify |= mono_method_get_wrapper_type(method) == MONO_WRAPPER_COMINTEROP_INVOKE;
 
 	dont_verify |= mono_security_get_mode () == MONO_SECURITY_MODE_SMCS_HACK;
 
 	/* still some type unsafety issues in marshal wrappers... (unknown is PtrToStructure) */
-	dont_verify_stloc = method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE;
-	dont_verify_stloc |= method->wrapper_type == MONO_WRAPPER_UNKNOWN;
-	dont_verify_stloc |= method->wrapper_type == MONO_WRAPPER_NATIVE_TO_MANAGED;
+	dont_verify_stloc = mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_NATIVE;
+	dont_verify_stloc |= mono_method_get_wrapper_type(method) == MONO_WRAPPER_UNKNOWN;
+	dont_verify_stloc |= mono_method_get_wrapper_type(method) == MONO_WRAPPER_NATIVE_TO_MANAGED;
 
 	image = method->klass->image;
 	header = mono_method_get_header (method);
@@ -5523,7 +5523,7 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 	if (!cfg->generic_sharing_context)
 		g_assert (!sig->has_type_parameters);
 
-	if (sig->generic_param_count && method->wrapper_type == MONO_WRAPPER_NONE) {
+	if (sig->generic_param_count && mono_method_get_wrapper_type(method) == MONO_WRAPPER_NONE) {
 		g_assert (mono_method_get_is_inflated(method));
 		g_assert (mono_method_get_context (method)->method_inst);
 	}
@@ -5700,7 +5700,7 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 	}
 
 	/* we must Demand SecurityPermission.Unmanaged before P/Invoking */
-	pinvoke = (secman && (method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE));
+	pinvoke = (secman && (mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_NATIVE));
 	if (pinvoke) {
 		MonoMethod *wrapped = mono_marshal_method_from_wrapper (method);
 		if (wrapped && (wrapped->flags & METHOD_ATTRIBUTE_PINVOKE_IMPL)) {
@@ -5780,7 +5780,7 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 
 	if (mono_security_get_mode () == MONO_SECURITY_MODE_CORE_CLR) {
 		/* check if this is native code, e.g. an icall or a p/invoke */
-		if (method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE) {
+		if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_NATIVE) {
 			MonoMethod *wrapped = mono_marshal_method_from_wrapper (method);
 			if (wrapped) {
 				gboolean pinvk = (wrapped->flags & METHOD_ATTRIBUTE_PINVOKE_IMPL);
@@ -6331,7 +6331,7 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 				CHECK_STACK (1);
 				--sp;
 				addr = *sp;
-				if (method->wrapper_type != MONO_WRAPPER_NONE)
+				if (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE)
 					fsig = (MonoMethodSignature *)mono_method_get_wrapper_data (method, token);
 				else
 					fsig = mono_metadata_parse_signature (image, token);
@@ -6355,7 +6355,7 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 			} else {
 				MonoMethod *cil_method;
 				
-				if (method->wrapper_type != MONO_WRAPPER_NONE) {
+				if (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE) {
 					cmethod =  (MonoMethod *)mono_method_get_wrapper_data (method, token);
 					cil_method = cmethod;
 				} else if (constrained_call) {
@@ -6405,7 +6405,7 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 					 */
 					const int test_flags = METHOD_ATTRIBUTE_VIRTUAL | METHOD_ATTRIBUTE_FINAL | METHOD_ATTRIBUTE_STATIC;
 					const int expected_flags = METHOD_ATTRIBUTE_VIRTUAL | METHOD_ATTRIBUTE_FINAL;
-					if (!virtual && cmethod->klass->marshalbyref && (cmethod->flags & test_flags) == expected_flags && cfg->method->wrapper_type == MONO_WRAPPER_NONE)
+					if (!virtual && cmethod->klass->marshalbyref && (cmethod->flags & test_flags) == expected_flags && cfg->mono_method_get_wrapper_type(method) == MONO_WRAPPER_NONE)
 						virtual = 1;
 				}
 
@@ -6458,7 +6458,7 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 					CHECK_CFG_EXCEPTION;
 				}
 
-				if (cmethod->string_ctor && method->wrapper_type != MONO_WRAPPER_RUNTIME_INVOKE)
+				if (cmethod->string_ctor && mono_method_get_wrapper_type(method) != MONO_WRAPPER_RUNTIME_INVOKE)
 					g_assert_not_reached ();
 			}
 
@@ -6630,7 +6630,7 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 			if (cmethod && virtual && 
 			    (cmethod->flags & METHOD_ATTRIBUTE_VIRTUAL) && 
 		 	    !(MONO_METHOD_IS_FINAL (cmethod) && 
-			      cmethod->wrapper_type != MONO_WRAPPER_REMOTING_INVOKE_WITH_CHECK) &&
+			      cmono_method_get_wrapper_type(method) != MONO_WRAPPER_REMOTING_INVOKE_WITH_CHECK) &&
 			    mono_method_signature (cmethod)->generic_param_count) {
 				MonoInst *this_temp, *this_arg_temp, *store;
 				MonoInst *iargs [4];
@@ -6641,7 +6641,7 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 				INLINE_FAILURE;
 
 #if MONO_ARCH_HAVE_GENERALIZED_IMT_THUNK && !defined(ENABLE_LLVM)
-				if (cmethod->wrapper_type == MONO_WRAPPER_NONE && mono_use_imt) {
+				if (cmono_method_get_wrapper_type(method) == MONO_WRAPPER_NONE && mono_use_imt) {
 					g_assert (!imt_arg);
 					if (context_used) {
 						imt_arg = emit_get_rgctx_method (cfg, context_used,
@@ -7367,7 +7367,7 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 			MONO_ADD_INS (bblock, ins);
 
 #if HAVE_WRITE_BARRIERS
-			if (*ip == CEE_STIND_REF && method->wrapper_type != MONO_WRAPPER_WRITE_BARRIER && !((sp [1]->opcode == OP_PCONST) && (sp [1]->inst_p0 == 0))) {
+			if (*ip == CEE_STIND_REF && mono_method_get_wrapper_type(method) != MONO_WRAPPER_WRITE_BARRIER && !((sp [1]->opcode == OP_PCONST) && (sp [1]->inst_p0 == 0))) {
 				/* insert call to write barrier */
 				MonoMethod *write_barrier = mono_gc_get_write_barrier ();
 				mono_emit_method_call (cfg, write_barrier, sp, NULL);
@@ -7645,12 +7645,12 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 			CHECK_OPSIZE (5);
 			n = read32 (ip + 1);
 
-			if (method->wrapper_type == MONO_WRAPPER_DYNAMIC_METHOD) {
+			if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_DYNAMIC_METHOD) {
 				EMIT_NEW_PCONST (cfg, ins, mono_method_get_wrapper_data (method, n));
 				ins->type = STACK_OBJ;
 				*sp = ins;
 			}
-			else if (method->wrapper_type != MONO_WRAPPER_NONE) {
+			else if (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE) {
 				MonoInst *iargs [1];
 
 				EMIT_NEW_PCONST (cfg, iargs [0], mono_method_get_wrapper_data (method, n));				
@@ -8259,7 +8259,7 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 				UNVERIFIED;
 			CHECK_OPSIZE (5);
 			token = read32 (ip + 1);
-			if (method->wrapper_type != MONO_WRAPPER_NONE) {
+			if (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE) {
 				field = mono_method_get_wrapper_data (method, token);
 				klass = field->parent;
 			}
@@ -8403,7 +8403,7 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 			CHECK_OPSIZE (5);
 			token = read32 (ip + 1);
 
-			if (method->wrapper_type != MONO_WRAPPER_NONE) {
+			if (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE) {
 				field = mono_method_get_wrapper_data (method, token);
 				klass = field->parent;
 			}
@@ -8811,7 +8811,7 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 			 * to be for correctness. the wrappers are lax with their usage
 			 * so we need to ignore them here
 			 */
-			if (!klass->valuetype && method->wrapper_type == MONO_WRAPPER_NONE && !readonly) {
+			if (!klass->valuetype && mono_method_get_wrapper_type(method) == MONO_WRAPPER_NONE && !readonly) {
 				MonoClass *array_class = mono_array_class_get (klass, 1);
 				mini_emit_check_array_type (cfg, sp [0], array_class);
 				CHECK_TYPELOAD (array_class);
@@ -9050,8 +9050,8 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 			CHECK_OPSIZE (5);
 			n = read32 (ip + 1);
 
-			if (method->wrapper_type == MONO_WRAPPER_DYNAMIC_METHOD ||
-					method->wrapper_type == MONO_WRAPPER_SYNCHRONIZED) {
+			if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_DYNAMIC_METHOD ||
+					mono_method_get_wrapper_type(method) == MONO_WRAPPER_SYNCHRONIZED) {
 				handle = mono_method_get_wrapper_data (method, n);
 				handle_class = mono_method_get_wrapper_data (method, n + 1);
 				if (handle_class == mono_defaults.typehandle_class)
@@ -9088,8 +9088,8 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 			}
 
 			if ((cfg->opt & MONO_OPT_SHARED) &&
-					method->wrapper_type != MONO_WRAPPER_DYNAMIC_METHOD &&
-					method->wrapper_type != MONO_WRAPPER_SYNCHRONIZED) {
+					mono_method_get_wrapper_type(method) != MONO_WRAPPER_DYNAMIC_METHOD &&
+					mono_method_get_wrapper_type(method) != MONO_WRAPPER_SYNCHRONIZED) {
 				MonoInst *addr, *vtvar, *iargs [3];
 				int method_context_used;
 
@@ -9128,7 +9128,7 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 						ins = emit_get_rgctx_klass (cfg, context_used,
 							tclass, MONO_RGCTX_INFO_REFLECTION_TYPE);
 					} else if (cfg->compile_aot) {
-						if (method->wrapper_type) {
+						if (mono_method_get_wrapper_type(method)) {
 							if (mono_class_get (tclass->image, tclass->type_token) == tclass && !generic_context) {
 								/* Special case for static synchronized wrappers */
 								EMIT_NEW_TYPE_FROM_HANDLE_CONST (cfg, ins, tclass->image, tclass->type_token, generic_context);
@@ -9301,7 +9301,7 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 			 */
 		case MONO_CUSTOM_PREFIX: {
 
-			g_assert (method->wrapper_type != MONO_WRAPPER_NONE);
+			g_assert (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE);
 
 			CHECK_OPSIZE (2);
 			switch (ip [1]) {
@@ -9334,7 +9334,7 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 				token = read32 (ip + 2);
 
 				ptr = mono_method_get_wrapper_data (method, token);
-				if (cfg->compile_aot && (method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE) && (strstr (method->name, "__icall_wrapper_") == method->name)) {
+				if (cfg->compile_aot && (mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_NATIVE) && (strstr (method->name, "__icall_wrapper_") == method->name)) {
 					MonoJitICallInfo *callinfo;
 					const char *icall_name;
 
@@ -9920,7 +9920,7 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
 			case CEE_CONSTRAINED_:
 				CHECK_OPSIZE (6);
 				token = read32 (ip + 2);
-				if (method->wrapper_type != MONO_WRAPPER_NONE)
+				if (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE)
 					constrained_call =  (MonoClass *)mono_method_get_wrapper_data (method, token);
 				else
 					constrained_call = mono_class_get_full (image, token, generic_context);

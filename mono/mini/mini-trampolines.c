@@ -466,7 +466,7 @@ mono_magic_trampoline (mgreg_t *regs, guint8 *code, gpointer arg, guint8* tramp)
 			ji = NULL;
 
 		/* Avoid recursion */
-		if (!(ji && ji->method->wrapper_type == MONO_WRAPPER_SYNCHRONIZED))
+		if (!(ji && ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_SYNCHRONIZED))
 			m = mono_marshal_get_synchronized_wrapper (m);
 	}
 
@@ -612,7 +612,7 @@ mono_llvm_vcall_trampoline (mgreg_t *regs, guint8 *code, MonoMethod *m, guint8 *
 			ji = NULL;
 
 		/* Avoid recursion */
-		if (!(ji && ji->method->wrapper_type == MONO_WRAPPER_SYNCHRONIZED))
+		if (!(ji && ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_SYNCHRONIZED))
 			m = mono_marshal_get_synchronized_wrapper (m);
 	}
 

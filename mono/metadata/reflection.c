@@ -11869,7 +11869,7 @@ mono_declsec_get_demands (MonoMethod *method, MonoDeclSecurityActions* demands)
 		return FALSE;
 
 	/* we want the original as the wrapper is "free" of the security informations */
-	if (method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE || method->wrapper_type == MONO_WRAPPER_MANAGED_TO_MANAGED) {
+	if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_NATIVE || mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_MANAGED) {
 		method = mono_marshal_method_from_wrapper (method);
 		if (!method)
 			return FALSE;
@@ -11917,7 +11917,7 @@ mono_declsec_get_linkdemands (MonoMethod *method, MonoDeclSecurityActions* klass
 		return FALSE;
 
 	/* we want the original as the wrapper is "free" of the security informations */
-	if (method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE || method->wrapper_type == MONO_WRAPPER_MANAGED_TO_MANAGED) {
+	if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_NATIVE || mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_MANAGED) {
 		method = mono_marshal_method_from_wrapper (method);
 		if (!method)
 			return FALSE;
@@ -11992,7 +11992,7 @@ mono_declsec_get_inheritdemands_method (MonoMethod *method, MonoDeclSecurityActi
 		return FALSE;
 
 	/* we want the original as the wrapper is "free" of the security informations */
-	if (method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE || method->wrapper_type == MONO_WRAPPER_MANAGED_TO_MANAGED) {
+	if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_NATIVE || mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_MANAGED) {
 		method = mono_marshal_method_from_wrapper (method);
 		if (!method)
 			return FALSE;

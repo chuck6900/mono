@@ -1150,14 +1150,14 @@ token_handler (MonoDisHelper *dh, MonoMethod *method, guint32 token)
 	MonoClassField *field;
 	gpointer data = NULL;
 
-	if (method->wrapper_type)
+	if (mono_method_get_wrapper_type(method))
 		data = mono_method_get_wrapper_data (method, token);
 
 	switch (*token_handler_ip) {
 	case CEE_ISINST:
 	case CEE_CASTCLASS:
 	case CEE_LDELEMA:
-		if (method->wrapper_type)
+		if (mono_method_get_wrapper_type(method))
 			klass = data;
 		else
 			klass = mono_class_get_full (method->klass->image, token, NULL);
@@ -1166,7 +1166,7 @@ token_handler (MonoDisHelper *dh, MonoMethod *method, guint32 token)
 	case CEE_NEWOBJ:
 	case CEE_CALL:
 	case CEE_CALLVIRT:
-		if (method->wrapper_type)
+		if (mono_method_get_wrapper_type(method))
 			cmethod = data;
 		else
 			cmethod = mono_get_method_full (method->klass->image, token, NULL, NULL);
@@ -1175,7 +1175,7 @@ token_handler (MonoDisHelper *dh, MonoMethod *method, guint32 token)
 		g_free (desc);
 		break;
 	case CEE_CALLI:
-		if (method->wrapper_type) {
+		if (mono_method_get_wrapper_type(method)) {
 			desc = mono_signature_get_desc (data, FALSE);
 			res = g_strdup_printf ("<%s>", desc);
 			g_free (desc);
@@ -1187,7 +1187,7 @@ token_handler (MonoDisHelper *dh, MonoMethod *method, guint32 token)
 	case CEE_LDSFLD:
 	case CEE_STFLD:
 	case CEE_STSFLD:
-		if (method->wrapper_type)
+		if (mono_method_get_wrapper_type(method))
 			field = data;
 		else
 			field = mono_field_from_token (method->klass->image, token, &klass, NULL);

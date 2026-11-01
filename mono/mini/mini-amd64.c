@@ -2567,7 +2567,7 @@ emit_call_body (MonoCompile *cfg, guint8 *code, guint32 patch_type, gconstpointe
 			} else {
 				MonoJitICallInfo *info = mono_find_jit_icall_by_addr (data);
 				if (info) {
-					if ((cfg->method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE) && 
+					if ((cfg->mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_NATIVE) && 
 						strstr (cfg->method->name, info->name)) {
 						/* A call to the wrapped function */
 						if ((((guint64)data) >> 32) == 0)
@@ -4080,7 +4080,7 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 			 */
 			if ((call->signature->call_convention == MONO_CALL_VARARG) && (call->signature->pinvoke))
 				amd64_alu_reg_reg (code, X86_XOR, AMD64_RAX, AMD64_RAX);
-			else if ((cfg->method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE) && (cfg->method->klass->image != mono_defaults.corlib)) {
+			else if ((cfg->mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_NATIVE) && (cfg->method->klass->image != mono_defaults.corlib)) {
 				/* 
 				 * Since the unmanaged calling convention doesn't contain a 
 				 * 'vararg' entry, we have to treat every pinvoke call as a
@@ -4127,7 +4127,7 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 					ins->sreg1 = AMD64_R11;
 				}
 				amd64_alu_reg_reg (code, X86_XOR, AMD64_RAX, AMD64_RAX);
-			} else if ((cfg->method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE) && (cfg->method->klass->image != mono_defaults.corlib)) {
+			} else if ((cfg->mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_NATIVE) && (cfg->method->klass->image != mono_defaults.corlib)) {
 				/* 
 				 * Since the unmanaged calling convention doesn't contain a 
 				 * 'vararg' entry, we have to treat every pinvoke call as a
@@ -6043,7 +6043,7 @@ mono_arch_emit_prolog (MonoCompile *cfg)
 	}
 
 	/* Might need to attach the thread to the JIT  or change the domain for the callback */
-	if (method->wrapper_type == MONO_WRAPPER_NATIVE_TO_MANAGED) {
+	if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_NATIVE_TO_MANAGED) {
 		guint64 domain = (guint64)cfg->domain;
 
 		args_clobbered = TRUE;

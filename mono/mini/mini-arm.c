@@ -4640,7 +4640,7 @@ mono_arch_emit_prolog (MonoCompile *cfg)
 		pos++;
 	}
 
-	if (method->wrapper_type == MONO_WRAPPER_NATIVE_TO_MANAGED) {
+	if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_NATIVE_TO_MANAGED) {
 		if (cfg->compile_aot)
 			/* AOT code is only used in the root domain */
 			code = mono_arm_emit_load_imm (code, ARMREG_R0, 0);

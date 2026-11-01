@@ -1245,7 +1245,7 @@ gboolean
 mini_assembly_can_skip_verification (MonoDomain *domain, MonoMethod *method)
 {
 	MonoAssembly *assembly = method->klass->image->assembly;
-	if (method->wrapper_type != MONO_WRAPPER_NONE)
+	if (mono_method_get_wrapper_type(method) != MONO_WRAPPER_NONE)
 		return FALSE;
 	if (assembly->in_gac || assembly->image == mono_defaults.corlib)
 		return FALSE;
@@ -2953,7 +2953,7 @@ mono_postprocess_patches (MonoCompile *cfg)
 			if (info) {
 				//printf ("TEST %s %p\n", info->name, patch_info->data.target);
 				// FIXME: CLEAN UP THIS MESS.
-				if ((cfg->method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE) && 
+				if ((cfg->mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_NATIVE) && 
 					strstr (cfg->method->name, info->name)) {
 					/*
 					 * This is an icall wrapper, and this is a call to the
@@ -3494,7 +3494,7 @@ mini_method_compile (MonoMethod *method, guint32 opts, MonoDomain *domain, gbool
 
 	//cfg->globalra = TRUE;
 
-	//if (!strcmp (cfg->method->klass->name, "Tests") && !cfg->method->wrapper_type)
+	//if (!strcmp (cfg->method->klass->name, "Tests") && !cfg->mono_method_get_wrapper_type(method))
 	//	cfg->globalra = TRUE;
 
 	{
@@ -3515,7 +3515,7 @@ mini_method_compile (MonoMethod *method, guint32 opts, MonoDomain *domain, gbool
 	if (header->clauses)
 		cfg->globalra = FALSE;
 
-	if (cfg->method->wrapper_type == MONO_WRAPPER_NATIVE_TO_MANAGED)
+	if (cfg->mono_method_get_wrapper_type(method) == MONO_WRAPPER_NATIVE_TO_MANAGED)
 		/* The code in the prolog clobbers caller saved registers */
 		cfg->globalra = FALSE;
 
@@ -4458,7 +4458,7 @@ mono_jit_compile_method_inner (MonoMethod *method, MonoDomain *target_domain, in
 	}
 
 	if (prof_options & MONO_PROFILE_JIT_COMPILATION) {
-		if (method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE) {
+		if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_NATIVE) {
 			if (strstr (method->name, "wrapper_native_") == method->name) {
 				/* Native func wrappers, these have no method */
 				/* FIXME: Clean this up */
@@ -4491,7 +4491,7 @@ mono_jit_compile_method_with_opt (MonoMethod *method, guint32 opt, MonoException
 	 * ICALL wrappers are handled specially, since there is only one copy of them
 	 * shared by all appdomains.
 	 */
-	if ((method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE) && (strstr (method->name, "__icall_wrapper_") == method->name)) {
+	if ((mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_NATIVE) && (strstr (method->name, "__icall_wrapper_") == method->name)) {
 		const char *icall_name;
 
 		icall_name = method->name + strlen ("__icall_wrapper_");
@@ -4598,7 +4598,7 @@ mono_jit_free_method (MonoDomain *domain, MonoMethod *method)
 	mono_domain_unlock (domain);
 
 #ifdef MONO_ARCH_HAVE_INVALIDATE_METHOD
-	if (debug_options.keep_delegates && method->wrapper_type == MONO_WRAPPER_NATIVE_TO_MANAGED) {
+	if (debug_options.keep_delegates && mono_method_get_wrapper_type(method) == MONO_WRAPPER_NATIVE_TO_MANAGED) {
 		/*
 		 * Instead of freeing the code, change it to call an error routine
 		 * so people can fix their code.
@@ -4682,7 +4682,7 @@ mono_jit_runtime_invoke (MonoMethod *method, void *obj, void **params, MonoObjec
 	MonoJitDomainInfo *domain_info;
 	RuntimeInvokeInfo *info, *info2;
 	
-	if (obj == NULL && !(method->flags & METHOD_ATTRIBUTE_STATIC) && !method->string_ctor && (method->wrapper_type == 0)) {
+	if (obj == NULL && !(method->flags & METHOD_ATTRIBUTE_STATIC) && !method->string_ctor && (mono_method_get_wrapper_type(method) == 0)) {
 		g_warning ("Ignoring invocation of an instance method on a NULL instance.\n");
 		return NULL;
 	}

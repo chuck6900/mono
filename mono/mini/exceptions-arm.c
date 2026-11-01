@@ -394,7 +394,7 @@ mono_arch_find_jit_info_ext (MonoDomain *domain, MonoJitTlsData *jit_tls,
 
 		frame->type = FRAME_TYPE_MANAGED;
 
-		if (!ji->method->wrapper_type || ji->method->wrapper_type == MONO_WRAPPER_DYNAMIC_METHOD)
+		if (!ji->mono_method_get_wrapper_type(method) || ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_DYNAMIC_METHOD)
 			frame->managed = TRUE;
 
 		if (ji->from_aot)

@@ -2324,7 +2324,7 @@ mono_marshal_method_set_wrapper_data (MonoMethod *method, gpointer data)
 {
 	void **datav;
 	/* assert */
-	if (method->wrapper_type == MONO_WRAPPER_NONE || method->wrapper_type == MONO_WRAPPER_DYNAMIC_METHOD)
+	if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_NONE || mono_method_get_wrapper_type(method) == MONO_WRAPPER_DYNAMIC_METHOD)
 		return;
 
 	datav = ((MonoMethodWrapper *)method)->method_data;
@@ -2407,7 +2407,7 @@ mono_remoting_mb_create_and_cache (MonoMethod *key, MonoMethodBuilder *mb,
 		g_hash_table_insert (cache, key, wrps);
 	}
 
-	switch (mb->method->wrapper_type) {
+	switch (mb->mono_method_get_wrapper_type(method)) {
 	case MONO_WRAPPER_REMOTING_INVOKE: res = &wrps->invoke; break;
 	case MONO_WRAPPER_REMOTING_INVOKE_WITH_CHECK: res = &wrps->invoke_with_check; break;
 	case MONO_WRAPPER_XDOMAIN_INVOKE: res = &wrps->xdomain_invoke; break;
@@ -2729,7 +2729,7 @@ mono_marshal_get_remoting_invoke (MonoMethod *method)
 
 	g_assert (method);
 
-	if (method->wrapper_type == MONO_WRAPPER_REMOTING_INVOKE || method->wrapper_type == MONO_WRAPPER_XDOMAIN_INVOKE)
+	if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_REMOTING_INVOKE || mono_method_get_wrapper_type(method) == MONO_WRAPPER_XDOMAIN_INVOKE)
 		return method;
 
 	/* this seems to be the best plase to put this, as all remoting invokes seem to get filtered through here */
@@ -3280,7 +3280,7 @@ mono_marshal_get_xappdomain_invoke (MonoMethod *method)
 
 	g_assert (method);
 	
-	if (method->wrapper_type == MONO_WRAPPER_REMOTING_INVOKE || method->wrapper_type == MONO_WRAPPER_XDOMAIN_INVOKE)
+	if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_REMOTING_INVOKE || mono_method_get_wrapper_type(method) == MONO_WRAPPER_XDOMAIN_INVOKE)
 		return method;
 
 	/* we cant remote methods without this pointer */
@@ -3621,7 +3621,7 @@ mono_marshal_get_remoting_invoke_with_check (MonoMethod *method)
 
 	g_assert (method);
 
-	if (method->wrapper_type == MONO_WRAPPER_REMOTING_INVOKE_WITH_CHECK)
+	if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_REMOTING_INVOKE_WITH_CHECK)
 		return method;
 
 	/* we cant remote methods without this pointer */
@@ -9066,7 +9066,7 @@ mono_marshal_get_synchronized_wrapper (MonoMethod *method)
 
 	g_assert (method);
 
-	if (method->wrapper_type == MONO_WRAPPER_SYNCHRONIZED)
+	if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_SYNCHRONIZED)
 		return method;
 
 	cache = get_cache (&method->klass->image->synchronized_cache, mono_aligned_addr_hash, NULL);

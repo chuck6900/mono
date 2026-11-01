@@ -2651,7 +2651,7 @@ process_frame (StackFrameInfo *info, MonoContext *ctx, gpointer user_data)
 	else
 		method = info->method;
 
-	if (!method || (method->wrapper_type && method->wrapper_type != MONO_WRAPPER_DYNAMIC_METHOD))
+	if (!method || (mono_method_get_wrapper_type(method) && mono_method_get_wrapper_type(method) != MONO_WRAPPER_DYNAMIC_METHOD))
 		return FALSE;
 
 	if (info->il_offset == -1) {
@@ -2661,7 +2661,7 @@ process_frame (StackFrameInfo *info, MonoContext *ctx, gpointer user_data)
 
 	DEBUG (1, fprintf (log_file, "\tFrame: %s %d %d %d\n", mono_method_full_name (method, TRUE), info->native_offset, info->il_offset, info->managed));
 
-	if (!info->managed && method->wrapper_type != MONO_WRAPPER_DYNAMIC_METHOD) {
+	if (!info->managed && mono_method_get_wrapper_type(method) != MONO_WRAPPER_DYNAMIC_METHOD) {
 		/*
 		 * mono_arch_find_jit_info () returns the context stored in the LMF for 
 		 * native frames, but it should unwind once. This is why we have duplicate
@@ -3784,7 +3784,7 @@ process_breakpoint_inner (DebuggerTlsData *tls, MonoContext *ctx)
 	 */
 	mono_arch_skip_breakpoint (ctx);
 
-	if (ji->method->wrapper_type || tls->disable_breakpoints)
+	if (ji->mono_method_get_wrapper_type(method) || tls->disable_breakpoints)
 		return;
 
 	bp_reqs = g_ptr_array_new ();
@@ -4039,7 +4039,7 @@ process_single_step_inner (DebuggerTlsData *tls, MonoContext *ctx)
 	g_assert (ji);
 	g_assert (ji->method);
 
-	if (ji->method->wrapper_type && ji->method->wrapper_type != MONO_WRAPPER_DYNAMIC_METHOD)
+	if (ji->mono_method_get_wrapper_type(method) && ji->mono_method_get_wrapper_type(method) != MONO_WRAPPER_DYNAMIC_METHOD)
 		return;
 
 	/* 
@@ -4480,7 +4480,7 @@ mono_debugger_agent_handle_exception (MonoException *exc, MonoContext *throw_ctx
 		if (d != NULL) {
 			MonoJitInfo *catch_ji = mini_jit_info_table_find (mono_domain_get (), MONO_CONTEXT_GET_IP (catch_ctx), NULL);
 			if (catch_ji != NULL) {
-				if ((catch_ji->method->wrapper_type == MONO_WRAPPER_RUNTIME_INVOKE) &&
+				if ((catch_ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_RUNTIME_INVOKE) &&
 						(ji != NULL) &&
 						class_is_a_UnityEngine_MonoBehaviour (ji->method->klass)) {
 					// Make so that we stop at this exception
@@ -6493,7 +6493,7 @@ method_commands_internal (int command, MonoMethod *method, MonoDomain *domain, g
 			gpointer val;
 			MonoClass *handle_class;
 
-			if (method->wrapper_type == MONO_WRAPPER_DYNAMIC_METHOD) {
+			if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_DYNAMIC_METHOD) {
 				val = mono_method_get_wrapper_data (method, token);
 				handle_class = mono_method_get_wrapper_data (method, token + 1);
 

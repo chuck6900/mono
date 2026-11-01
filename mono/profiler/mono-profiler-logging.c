@@ -2642,7 +2642,7 @@ write_mapping_block (gsize thread_id) {
 		g_assert (class_element != NULL);
 		write_uint32 (current_method->id);
 		write_uint32 (class_element->id);
-		if (method->wrapper_type != 0) {
+		if (mono_method_get_wrapper_type(method) != 0) {
 			write_uint32 (1);
 		} else {
 			write_uint32 (0);

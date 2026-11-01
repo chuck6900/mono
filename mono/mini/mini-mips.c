@@ -1184,7 +1184,7 @@ mono_arch_allocate_vars (MonoCompile *cfg)
 	 * non-varargs signatures. Since there is little hope people will get this right
 	 * we assume they won't.
 	 */
-	if (cfg->method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE)
+	if (cfg->mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_NATIVE)
 		cfg->param_area = MAX (cfg->param_area, sizeof (gpointer)*8);
 
 	/* a0-a3 always present */
@@ -4812,7 +4812,7 @@ mono_arch_emit_prolog (MonoCompile *cfg)
 		pos++;
 	}
 
-	if (method->wrapper_type == MONO_WRAPPER_NATIVE_TO_MANAGED) {
+	if (mono_method_get_wrapper_type(method) == MONO_WRAPPER_NATIVE_TO_MANAGED) {
 		mips_load_const (code, mips_a0, cfg->domain);
 		mips_load_const (code, mips_t9, (gpointer)mono_jit_thread_attach);
 		mips_jalr (code, mips_t9, mips_ra);

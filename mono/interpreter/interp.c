@@ -688,7 +688,7 @@ interp_walk_stack (MonoStackWalk func, gboolean do_il_offset, gpointer user_data
 		else {
 			hd = mono_method_get_header (method);
 			il_offset = frame->ip - (const unsigned short *)hd->code;
-			if (!method->wrapper_type)
+			if (!mono_method_get_wrapper_type(method))
 				managed = TRUE;
 		}
 		if (func (method, -1, il_offset, managed, user_data))

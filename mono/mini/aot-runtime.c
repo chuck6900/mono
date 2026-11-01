@@ -427,17 +427,17 @@ can_method_ref_match_method (MonoAotModule *module, guint8 *buf, MonoMethod *met
 	if (image_index == MONO_AOT_METHODREF_WRAPPER) {
 		guint32 wrapper_type;
 
-		if (!method->wrapper_type)
+		if (!mono_method_get_wrapper_type(method))
 			return FALSE;
 
 		wrapper_type = decode_value (p, &p);
 
-		if (method->wrapper_type != wrapper_type)
+		if (mono_method_get_wrapper_type(method) != wrapper_type)
 			return FALSE;
 	} else if (image_index == MONO_AOT_METHODREF_WRAPPER_NAME) {
 		return FALSE;
 	} else if (image_index < MONO_AOT_METHODREF_MIN || image_index == MONO_AOT_METHODREF_METHODSPEC || image_index == MONO_AOT_METHODREF_GINST) {
-		if (method->wrapper_type)
+		if (mono_method_get_wrapper_type(method))
 			return FALSE;
 	}
 
@@ -2154,7 +2154,7 @@ load_method (MonoDomain *domain, MonoAotModule *amodule, MonoImage *image, MonoM
 
 	init_plt (amodule);
 
-	if (method && method->wrapper_type)
+	if (method && mono_method_get_wrapper_type(method))
 		g_hash_table_insert (amodule->method_to_code, method, code);
 
 	mono_aot_unlock ();
@@ -2224,7 +2224,7 @@ find_extra_method_in_amodule (MonoAotModule *amodule, MonoMethod *method, const 
 		is_wrapper_name = decode_value (p, &p);
 		if (is_wrapper_name) {
 			int wrapper_type = decode_value (p, &p);
-			if (wrapper_type == method->wrapper_type && !strcmp (name, (char*)p)) {
+			if (wrapper_type == mono_method_get_wrapper_type(method) && !strcmp (name, (char*)p)) {
 				index = value;
 				break;
 			}
@@ -2249,8 +2249,8 @@ find_extra_method_in_amodule (MonoAotModule *amodule, MonoMethod *method, const 
 			}
 
 			/* Special case: wrappers of shared generic methods */
-			if (m && method->wrapper_type && m->wrapper_type == m->wrapper_type &&
-				method->wrapper_type == MONO_WRAPPER_SYNCHRONIZED) {
+			if (m && mono_method_get_wrapper_type(method) && m->wrapper_type == m->wrapper_type &&
+				mono_method_get_wrapper_type(method) == MONO_WRAPPER_SYNCHRONIZED) {
 				MonoMethod *w1 = mono_marshal_method_from_wrapper (method);
 				MonoMethod *w2 = mono_marshal_method_from_wrapper (m);
 
@@ -2298,7 +2298,7 @@ find_extra_method (MonoMethod *method, MonoAotModule **out_amodule)
 	int i;
 	char *name = NULL;
 
-	if (method->wrapper_type)
+	if (mono_method_get_wrapper_type(method))
 		name = mono_aot_wrapper_name (method);
 
 	/* Try the method's module first */
@@ -2377,7 +2377,7 @@ mono_aot_get_method (MonoDomain *domain, MonoMethod *method)
 		return NULL;
 
 #if defined (PLATFORM_IPHONE) 
-        if (mono_ficall_flag && method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE) {
+        if (mono_ficall_flag && mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_NATIVE) {
         	MonoMethod *wrapped = mono_marshal_method_from_wrapper (method);
         	if (wrapped && (wrapped->iflags & METHOD_IMPL_ATTRIBUTE_INTERNAL_CALL) && 
 				mono_method_marked_as_wrapperless(wrapped))
@@ -2397,7 +2397,7 @@ mono_aot_get_method (MonoDomain *domain, MonoMethod *method)
 	 * This is not a problem when using full-aot, since it doesn't support
 	 * remoting.
 	 */
-	if (mono_aot_only && method->wrapper_type == MONO_WRAPPER_REMOTING_INVOKE_WITH_CHECK)
+	if (mono_aot_only && mono_method_get_wrapper_type(method) == MONO_WRAPPER_REMOTING_INVOKE_WITH_CHECK)
 		return mono_aot_get_method (domain, mono_marshal_method_from_wrapper (method));
 
 	g_assert (klass->inited);
@@ -2420,7 +2420,7 @@ mono_aot_get_method (MonoDomain *domain, MonoMethod *method)
 		 * be statically enumerated, and each wrapper ends up calling the same
 		 * method in Array.
 		 */
-		if (method_index == 0xffffff && method->wrapper_type == MONO_WRAPPER_MANAGED_TO_MANAGED && method->klass->rank && strstr (method->name, "System.Collections.Generic")) {
+		if (method_index == 0xffffff && mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_MANAGED && method->klass->rank && strstr (method->name, "System.Collections.Generic")) {
 			MonoMethod *m = mono_aot_get_array_helper_from_wrapper (method);
 
 			code = mono_aot_get_method (domain, m);
@@ -2437,7 +2437,7 @@ mono_aot_get_method (MonoDomain *domain, MonoMethod *method)
 		 * Generic sharing currently can't handle it, but the icall returns data using
 		 * an out parameter, so the managed-to-native wrappers can share the same code.
 		 */
-		if (method_index == 0xffffff && method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE && method->klass == mono_defaults.array_class && !strcmp (method->name, "GetGenericValueImpl")) {
+		if (method_index == 0xffffff && mono_method_get_wrapper_type(method) == MONO_WRAPPER_MANAGED_TO_NATIVE && method->klass == mono_defaults.array_class && !strcmp (method->name, "GetGenericValueImpl")) {
 			MonoMethod *m;
 			MonoGenericContext ctx;
 			MonoType *args [16];
