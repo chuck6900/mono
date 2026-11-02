@@ -33,6 +33,8 @@
 #include <mono/metadata/reflection.h>
 #include <mono/metadata/coree.h>
 
+#include "mini/mini.h"
+
 #ifndef PLATFORM_WIN32
 #include <sys/types.h>
 #include <unistd.h>
@@ -2609,7 +2611,7 @@ mono_assembly_get_main (void)
 MonoImage*
 mono_assembly_get_image (MonoAssembly *assembly)
 {
-	return assembly->image;
+	return fix(assembly->image);
 }
 
 void

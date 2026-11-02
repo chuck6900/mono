@@ -490,7 +490,7 @@ mono_type_get_underlying_type (MonoType *type)
 gboolean
 mono_class_is_open_constructed_type (MonoType *t)
 {
-	switch (t->type) {
+	switch (mono_type_get_type(t)) {
 	case MONO_TYPE_VAR:
 	case MONO_TYPE_MVAR:
 		return TRUE;
@@ -501,7 +501,7 @@ mono_class_is_open_constructed_type (MonoType *t)
 	case MONO_TYPE_PTR:
 		return mono_class_is_open_constructed_type (t->data.type);
 	case MONO_TYPE_GENERICINST:
-		return t->data.generic_class->context.class_inst->is_open;
+		return mono_generic_inst_get_is_open(fix(t->data.generic_class->context.class_inst));
 	default:
 		return FALSE;
 	}
@@ -516,13 +516,14 @@ inflate_generic_type (MonoImage *image, MonoType *type, MonoGenericContext *cont
 	case MONO_TYPE_MVAR: {
 		MonoType *nt;
 		int num = mono_type_get_generic_param_num (type);
-		MonoGenericInst *inst = context->method_inst;
+		MonoGenericInst *inst = fix(context->method_inst);
 		if (!inst || !inst->type_argv)
 			return NULL;
-		if (num >= inst->type_argc) {
+		if (num >= mono_generic_inst_get_type_argc(inst)) {
+		    fix(type->data.generic_param);
 			MonoGenericParamInfo *info = mono_generic_param_info (type->data.generic_param);
 			mono_error_set_bad_image (error, image, "MVAR %d (%s) cannot be expanded in this context with %d instantiations",
-				num, info ? info->name : "", inst->type_argc);
+				num, info ? info->name : "", mono_generic_inst_get_type_argc(inst));
 			return NULL;
 		}
 
@@ -532,25 +533,25 @@ inflate_generic_type (MonoImage *image, MonoType *type, MonoGenericContext *cont
 		 * ->byref and ->attrs from @type are propagated to the returned type.
 		 */
 		nt = mono_metadata_type_dup (image, inst->type_argv [num]);
-		nt->byref = type->byref;
-		nt->attrs = type->attrs;
+		mono_type_set_byref(nt, mono_type_get_byref(type));
+		mono_type_set_attrs(nt, mono_type_get_attrs(type));
 		return nt;
 	}
 	case MONO_TYPE_VAR: {
 		MonoType *nt;
 		int num = mono_type_get_generic_param_num (type);
-		MonoGenericInst *inst = context->class_inst;
+		MonoGenericInst *inst = fix(context->class_inst);
 		if (!inst)
 			return NULL;
-		if (num >= inst->type_argc) {
+		if (num >= mono_generic_inst_get_type_argc(inst)) {
 			MonoGenericParamInfo *info = mono_generic_param_info (type->data.generic_param);
 			mono_error_set_bad_image (error, image, "VAR %d (%s) cannot be expanded in this context with %d instantiations",
 				num, info ? info->name : "", inst->type_argc);
 			return NULL;
 		}
 		nt = mono_metadata_type_dup (image, inst->type_argv [num]);
-		nt->byref = type->byref;
-		nt->attrs = type->attrs;
+	    mono_type_set_byref(nt, mono_type_get_byref(type));
+	    mono_type_set_attrs(nt, mono_type_get_attrs(type));
 		return nt;
 	}
 	case MONO_TYPE_SZARRAY: {
@@ -564,7 +565,7 @@ inflate_generic_type (MonoImage *image, MonoType *type, MonoGenericContext *cont
 		return nt;
 	}
 	case MONO_TYPE_ARRAY: {
-		MonoClass *eclass = type->data.array->eklass;
+		MonoClass *eclass = fix(type->data.array->eklass);
 		MonoType *nt, *inflated = inflate_generic_type (NULL, &eclass->byval_arg, context, error);
 		if (!inflated || !mono_error_ok (error))
 			return NULL;
@@ -575,10 +576,10 @@ inflate_generic_type (MonoImage *image, MonoType *type, MonoGenericContext *cont
 		return nt;
 	}
 	case MONO_TYPE_GENERICINST: {
-		MonoGenericClass *gclass = type->data.generic_class;
+		MonoGenericClass *gclass = fix(type->data.generic_class);
 		MonoGenericInst *inst;
 		MonoType *nt;
-		if (!gclass->context.class_inst->is_open)
+		if (!mono_generic_inst_get_is_open(gclass->context.class_inst))
 			return NULL;
 
 		inst = mono_metadata_inflate_generic_inst (gclass->context.class_inst, context, error);
@@ -596,8 +597,8 @@ inflate_generic_type (MonoImage *image, MonoType *type, MonoGenericContext *cont
 	}
 	case MONO_TYPE_CLASS:
 	case MONO_TYPE_VALUETYPE: {
-		MonoClass *klass = type->data.klass;
-		MonoGenericContainer *container = klass->generic_container;
+		MonoClass *klass = fix(type->data.klass);
+		MonoGenericContainer *container = fix(klass->generic_container);
 		MonoGenericInst *inst;
 		MonoGenericClass *gclass = NULL;
 		MonoType *nt;
@@ -615,7 +616,7 @@ inflate_generic_type (MonoImage *image, MonoType *type, MonoGenericContext *cont
 		gclass = mono_metadata_lookup_generic_class (klass, inst, klass->image->dynamic);
 
 		nt = mono_metadata_type_dup (image, type);
-		nt->type = MONO_TYPE_GENERICINST;
+		mono_type_code_set_type(nt, MONO_TYPE_GENERICINST);
 		nt->data.generic_class = gclass;
 		return nt;
 	}
@@ -1065,7 +1066,7 @@ mono_method_get_context_general (MonoMethod *method, gboolean uninflated)
 	}
 	if (!uninflated)
 		return NULL;
-	if (method->is_generic)
+	if (mono_method_get_is_generic(method))
 		return &(mono_method_get_generic_container (method)->context);
 	if (fix(method->klass->generic_container))
 		return &method->klass->generic_container->context;
@@ -1097,7 +1098,7 @@ mono_method_get_generic_container (MonoMethod *method)
 {
 	MonoGenericContainer *container;
 
-	if (!method->is_generic)
+	if (!mono_method_get_is_generic(method))
 		return NULL;
 
 	container = mono_image_property_lookup (fix(method->klass->image), method, MONO_METHOD_PROP_GENERIC_CONTAINER);
@@ -4472,7 +4473,7 @@ mono_class_init (MonoClass *class)
 					if (class->parent) { 
 						cmethod = class->vtable [finalize_slot];
 						g_assert (cmethod);
-						if (cmono_method_get_is_inflated(method))
+						if (cmethod->is_inflated)
 							cmethod = ((MonoMethodInflated*)cmethod)->declaring;
 						if (cmethod != default_finalize) {
 							class->has_finalize = 1;
@@ -7200,7 +7201,7 @@ mono_install_get_class_from_name (MonoGetClassFromName func)
 MonoImage*
 mono_class_get_image (MonoClass *klass)
 {
-	return klass->image;
+	return fix(klass->image);
 }
 
 /**

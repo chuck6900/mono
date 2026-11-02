@@ -19,6 +19,8 @@
 #include <mono/metadata/mono-endian.h>
 #include <string.h>
 
+#include "mini/mini.h"
+
 #define DATA_TABLE_CHUNK_SIZE		16384
 
 #define ALIGN_TO(val,align) ((((guint64)val) + ((align) - 1)) & ~((align) - 1))
@@ -112,7 +114,7 @@ gint32 _mono_debug_using_mono_debugger = 0;
 static gboolean mono_debug_initialized = FALSE;
 GHashTable *mono_debug_handles = NULL;
 
-static GHashTable *data_table_hash = NULL;
+GHashTable *data_table_hash = NULL;
 static int next_symbol_file_id = 0;
 
 static MonoDebugHandle     *mono_debug_open_image      (MonoImage *image, const guint8 *raw_contents, int size);
@@ -833,7 +835,7 @@ mono_debug_add_type (MonoClass *klass)
 	int base_offset = 0;
 
 	if (klass->generic_class || klass->rank ||
-	    (klass->byval_arg.type == MONO_TYPE_VAR) || (klass->byval_arg.type == MONO_TYPE_MVAR))
+	    (mono_type_get_type(&klass->byval_arg) == MONO_TYPE_VAR) || (mono_type_get_type(&klass->byval_arg) == MONO_TYPE_MVAR))
 		return;
 
 	mono_debugger_lock ();

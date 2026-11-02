@@ -2685,7 +2685,7 @@ ves_icall_MonoMethod_GetGenericMethodDefinition (MonoReflectionMethod *method)
 	if (method->method->is_generic)
 		return method;
 
-	if (!method->mono_method_get_is_inflated(method))
+	if (!method->method->is_inflated)
 		return NULL;
 
 	imethod = (MonoMethodInflated *) method->method;
@@ -2747,7 +2747,7 @@ ves_icall_MonoMethod_GetGenericArguments (MonoReflectionMethod *method)
 
 	domain = mono_object_domain (method);
 
-	if (method->mono_method_get_is_inflated(method)) {
+	if (method->method->is_inflated) {
 		MonoGenericInst *inst = mono_method_get_context (method->method)->method_inst;
 
 		if (inst) {

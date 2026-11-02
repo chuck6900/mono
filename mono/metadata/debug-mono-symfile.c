@@ -12,6 +12,8 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+
+#include "mini/mini.h"
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
@@ -87,7 +89,7 @@ load_symfile (MonoDebugHandle *handle, MonoSymbolFile *symfile, gboolean in_the_
 	guid = mono_guid_to_string ((const guint8 *) ptr);
 	ptr += 16;
 
-	if (strcmp (handle->image->guid, guid)) {
+	if (strcmp (fix(handle->image->guid), guid)) {
 		if (!in_the_debugger)
 			g_warning ("Symbol file %s doesn't match image %s", symfile->filename,
 				   handle->image_file);

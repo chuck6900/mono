@@ -22,6 +22,8 @@
 #ifndef MONO_BE_BITFIELD_ACCESSORS_DEFINED
 #define MONO_BE_BITFIELD_ACCESSORS_DEFINED
 
+extern gboolean mono_use_be_bitfield_accessors;
+
 static inline guint32
 mono_be_bitfield_load (const guint8 *storage, guint size)
 {
@@ -80,21 +82,31 @@ mono_be_bitfield_get_signed (const guint8 *storage, guint size, guint shift, gui
 #define MONO_DEFINE_BE_BITFIELD_ACCESSORS(struct_type, prefix, storage_member, field, value_type, shift, width) \
     static inline value_type prefix##_get_##field (const struct_type *instance) \
     { \
-        return (value_type)mono_be_bitfield_get (instance->storage_member, sizeof (instance->storage_member), shift, width); \
+        return mono_use_be_bitfield_accessors \
+            ? (value_type)mono_be_bitfield_get (instance->storage_member, sizeof (instance->storage_member), shift, width) \
+            : (value_type)instance->field; \
     } \
     static inline void prefix##_set_##field (struct_type *instance, value_type value) \
     { \
-        mono_be_bitfield_set (instance->storage_member, sizeof (instance->storage_member), shift, width, (guint32)value); \
+        if (mono_use_be_bitfield_accessors) \
+            mono_be_bitfield_set (instance->storage_member, sizeof (instance->storage_member), shift, width, (guint32)value); \
+        else \
+            instance->field = value; \
     }
 
 #define MONO_DEFINE_BE_SIGNED_BITFIELD_ACCESSORS(struct_type, prefix, storage_member, field, value_type, shift, width) \
     static inline value_type prefix##_get_##field (const struct_type *instance) \
     { \
-        return (value_type)mono_be_bitfield_get_signed (instance->storage_member, sizeof (instance->storage_member), shift, width); \
+        return mono_use_be_bitfield_accessors \
+            ? (value_type)mono_be_bitfield_get_signed (instance->storage_member, sizeof (instance->storage_member), shift, width) \
+            : (value_type)instance->field; \
     } \
     static inline void prefix##_set_##field (struct_type *instance, value_type value) \
     { \
-        mono_be_bitfield_set (instance->storage_member, sizeof (instance->storage_member), shift, width, (guint32)value); \
+        if (mono_use_be_bitfield_accessors) \
+            mono_be_bitfield_set (instance->storage_member, sizeof (instance->storage_member), shift, width, (guint32)value); \
+        else \
+            instance->field = value; \
     }
 
 #endif /* MONO_BE_BITFIELD_ACCESSORS_DEFINED */
@@ -114,23 +126,23 @@ G_BEGIN_DECLS
 #endif
 #endif
 
-#define MONO_TYPE_ISSTRUCT(t) (!mono_type_get_byref (t) && (((mono_type_get_type_code (t) == MONO_TYPE_VALUETYPE) && \
-    !mono_class_get_enumtype ((t)->data.klass)) || (mono_type_get_type_code (t) == MONO_TYPE_TYPEDBYREF) || \
-    ((mono_type_get_type_code (t) == MONO_TYPE_GENERICINST) && mono_metadata_generic_class_is_valuetype ((t)->data.generic_class) && \
+#define MONO_TYPE_ISSTRUCT(t) (!mono_type_get_byref (t) && (((mono_type_get_type (t) == MONO_TYPE_VALUETYPE) && \
+    !mono_class_get_enumtype ((t)->data.klass)) || (mono_type_get_type (t) == MONO_TYPE_TYPEDBYREF) || \
+    ((mono_type_get_type (t) == MONO_TYPE_GENERICINST) && mono_metadata_generic_class_is_valuetype ((t)->data.generic_class) && \
     !mono_class_get_enumtype ((t)->data.generic_class->container_class))))
 
-#define MONO_TYPE_IS_VOID(t) ((t) && (mono_type_get_type_code (t) == MONO_TYPE_VOID) && !mono_type_get_byref (t))
-#define MONO_TYPE_IS_POINTER(t) ((t) && (mono_type_get_byref (t) || (mono_type_get_type_code (t) == MONO_TYPE_I) || \
-    (mono_type_get_type_code (t) == MONO_TYPE_STRING) || (mono_type_get_type_code (t) == MONO_TYPE_SZARRAY) || \
-    (mono_type_get_type_code (t) == MONO_TYPE_CLASS) || (mono_type_get_type_code (t) == MONO_TYPE_OBJECT) || \
-    (mono_type_get_type_code (t) == MONO_TYPE_ARRAY) || (mono_type_get_type_code (t) == MONO_TYPE_PTR)))
+#define MONO_TYPE_IS_VOID(t) ((t) && (mono_type_get_type (t) == MONO_TYPE_VOID) && !mono_type_get_byref (t))
+#define MONO_TYPE_IS_POINTER(t) ((t) && (mono_type_get_byref (t) || (mono_type_get_type (t) == MONO_TYPE_I) || \
+    (mono_type_get_type (t) == MONO_TYPE_STRING) || (mono_type_get_type (t) == MONO_TYPE_SZARRAY) || \
+    (mono_type_get_type (t) == MONO_TYPE_CLASS) || (mono_type_get_type (t) == MONO_TYPE_OBJECT) || \
+    (mono_type_get_type (t) == MONO_TYPE_ARRAY) || (mono_type_get_type (t) == MONO_TYPE_PTR)))
 
-#define MONO_TYPE_IS_REFERENCE(t) ((t) && (((mono_type_get_type_code (t) == MONO_TYPE_STRING) || \
-    (mono_type_get_type_code (t) == MONO_TYPE_SZARRAY) || (mono_type_get_type_code (t) == MONO_TYPE_CLASS) || \
-    (mono_type_get_type_code (t) == MONO_TYPE_OBJECT) || (mono_type_get_type_code (t) == MONO_TYPE_ARRAY)) || \
-    ((mono_type_get_type_code (t) == MONO_TYPE_GENERICINST) && !mono_metadata_generic_class_is_valuetype ((t)->data.generic_class))))
+#define MONO_TYPE_IS_REFERENCE(t) ((t) && (((mono_type_get_type (t) == MONO_TYPE_STRING) || \
+    (mono_type_get_type (t) == MONO_TYPE_SZARRAY) || (mono_type_get_type (t) == MONO_TYPE_CLASS) || \
+    (mono_type_get_type (t) == MONO_TYPE_OBJECT) || (mono_type_get_type (t) == MONO_TYPE_ARRAY)) || \
+    ((mono_type_get_type (t) == MONO_TYPE_GENERICINST) && !mono_metadata_generic_class_is_valuetype ((t)->data.generic_class))))
 
-#define MONO_CLASS_IS_INTERFACE(c) (((c)->flags & TYPE_ATTRIBUTE_INTERFACE) || (mono_type_get_type_code (&(c)->byval_arg) == MONO_TYPE_VAR) || (mono_type_get_type_code (&(c)->byval_arg) == MONO_TYPE_MVAR))
+#define MONO_CLASS_IS_INTERFACE(c) (((c)->flags & TYPE_ATTRIBUTE_INTERFACE) || (mono_type_get_type (&(c)->byval_arg) == MONO_TYPE_VAR) || (mono_type_get_type (&(c)->byval_arg) == MONO_TYPE_MVAR))
 
 #define MONO_CLASS_IS_IMPORT(c) ((c->flags & TYPE_ATTRIBUTE_IMPORT))
 
@@ -410,6 +422,10 @@ typedef struct {
     union {
         guint32 _bitfield_alignment; /* preserve the original 32-bit alignment */
         guint8 _bitfield_data[4];   /* required and token, in big-endian order */
+        struct {
+            guint32 required : 1;
+            guint32 token : 31;
+        };
     };
 } MonoCustomMod;
 
@@ -437,12 +453,21 @@ struct _MonoType {
        MonoGenericParam *generic_param; /* for VAR and MVAR */
        MonoGenericClass *generic_class; /* for GENERICINST */
     } data;
-    guint8 _bitfield_data[4]; /* attrs, type, num_mods, byref, pinned */
+    union {
+        guint8 _bitfield_data[4];
+        struct {
+            guint32 attrs : 16;
+            guint32 type : 8;
+            guint32 num_mods : 6;
+            guint32 byref : 1;
+            guint32 pinned : 1;
+        };
+    }; /* attrs, type, num_mods, byref, pinned */
     MonoCustomMod modifiers [MONO_ZERO_LEN_ARRAY]; /* this may grow */
 };
 
 MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoType, mono_type, _bitfield_data, attrs, guint32, 16, 16)
-MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoType, mono_type, _bitfield_data, type_code, MonoTypeEnum, 8, 8)
+MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoType, mono_type_code, _bitfield_data, type, MonoTypeEnum, 8, 8)
 MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoType, mono_type, _bitfield_data, num_mods, guint32, 2, 6)
 MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoType, mono_type, _bitfield_data, byref, guint32, 1, 1)
 MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoType, mono_type, _bitfield_data, pinned, guint32, 0, 1)
@@ -454,10 +479,26 @@ MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoType, mono_type, _bitfield_data, pinned, 
  * accessors below, because it will go away from the public header.
  */
 struct _MonoMethodSignature {
-    guint8 _bitfield_flags0[4]; /* hasthis, explicit_this, call_convention, pinvoke, ref_count */
+    union {
+        guint8 _bitfield_flags0[4];
+        struct {
+            guint32 hasthis : 1;
+            guint32 explicit_this : 1;
+            guint32 call_convention : 6;
+            guint32 pinvoke : 1;
+            guint32 ref_count : 23;
+        };
+    }; /* hasthis, explicit_this, call_convention, pinvoke, ref_count */
     guint16       param_count;
     gint16        sentinelpos;
-    guint8 _bitfield_flags1[4]; /* generic_param_count, is_inflated, has_type_parameters */
+    union {
+        guint8 _bitfield_flags1[4];
+        struct {
+            guint32 generic_param_count : 30;
+            guint32 is_inflated : 1;
+            guint32 has_type_parameters : 1;
+        };
+    }; /* generic_param_count, is_inflated, has_type_parameters */
     MonoType     *ret;
     MonoType     *params [MONO_ZERO_LEN_ARRAY];
 };

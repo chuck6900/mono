@@ -2074,7 +2074,7 @@ mono_domain_get_by_id (gint32 domainid)
 gint32
 mono_domain_get_id (MonoDomain *domain)
 {
-	return domain->domain_id;
+	return fix_v(domain->domain_id);
 }
 
 /*

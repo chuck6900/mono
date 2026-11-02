@@ -10,6 +10,8 @@
 #include <mono/metadata/image.h>
 #include <mono/metadata/appdomain.h>
 
+G_BEGIN_DECLS
+
 typedef struct _MonoSymbolTable			MonoSymbolTable;
 typedef struct _MonoDebugDataTable		MonoDebugDataTable;
 
@@ -136,6 +138,7 @@ struct _MonoDebugVarInfo {
 extern MonoSymbolTable *mono_symbol_table;
 extern MonoDebugFormat mono_debug_format;
 extern GHashTable *mono_debug_handles;
+extern GHashTable *data_table_hash;
 extern gint32 mono_debug_debugger_version;
 extern gint32 _mono_debug_using_mono_debugger;
 
@@ -202,5 +205,7 @@ int             mono_debugger_insert_breakpoint           (const gchar *method_n
 
 void mono_set_is_debugger_attached (gboolean attached);
 gboolean mono_is_debugger_attached (void);
+
+G_END_DECLS
 
 #endif /* __MONO_DEBUG_H__ */

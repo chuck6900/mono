@@ -550,7 +550,7 @@ mono_array_to_lparray (MonoArray *array)
 
 	klass = array->obj.vtable->klass;
 
-	switch (klass->element_class->byval_arg.type) {
+	switch (mono_type_get_type(&klass->element_class->byval_arg)) {
 	case MONO_TYPE_VOID:
 		g_assert_not_reached ();
 		break;
@@ -584,7 +584,7 @@ mono_array_to_lparray (MonoArray *array)
 	case MONO_TYPE_SZARRAY:
 	case MONO_TYPE_STRING:
 	default:
-		g_warning ("type 0x%x not handled", klass->element_class->byval_arg.type);
+		g_warning ("type 0x%x not handled", mono_type_get_type(&klass->element_class->byval_arg));
 		g_assert_not_reached ();
 	}
 #endif
@@ -605,7 +605,7 @@ mono_free_lparray (MonoArray *array, gpointer* nativeArray)
 		return;
 	klass = array->obj.vtable->klass;
 
-	switch (klass->element_class->byval_arg.type) {
+	switch (mono_type_get_type(&klass->element_class->byval_arg)) {
 		case MONO_TYPE_CLASS:
 			for(i = 0; i < array->max_length; ++i) 	
 				mono_marshal_free_ccw(nativeArray[i]);
@@ -1035,7 +1035,7 @@ mono_type_to_ldind (MonoType *type)
 		return CEE_LDIND_I;
 
 handle_enum:
-	switch (type->type) {
+	switch (mono_type_get_type(type)) {
 	case MONO_TYPE_I1:
 		return CEE_LDIND_I1;
 	case MONO_TYPE_U1:
@@ -1080,7 +1080,7 @@ handle_enum:
 		type = &type->data.generic_class->container_class->byval_arg;
 		goto handle_enum;
 	default:
-		g_error ("unknown type 0x%02x in type_to_ldind", type->type);
+		g_error ("unknown type 0x%02x in type_to_ldind", mono_type_get_type(type));
 	}
 	return -1;
 }
@@ -1092,7 +1092,7 @@ mono_type_to_stind (MonoType *type)
 		return CEE_STIND_I;
 
 handle_enum:
-	switch (type->type) {
+	switch (mono_type_get_type(type)) {
 	case MONO_TYPE_I1:
 	case MONO_TYPE_U1:
 	case MONO_TYPE_BOOLEAN:
@@ -1134,7 +1134,7 @@ handle_enum:
 		type = &type->data.generic_class->container_class->byval_arg;
 		goto handle_enum;
 	default:
-		g_error ("unknown type 0x%02x in type_to_stind", type->type);
+		g_error ("unknown type 0x%02x in type_to_stind", mono_type_get_type(type));
 	}
 	return -1;
 }
@@ -1830,7 +1830,7 @@ emit_struct_conv (MonoMethodBuilder *mb, MonoClass *klass, gboolean to_object)
 			}
 
 		handle_enum:
-			t = ftype->type;
+			t = mono_type_get_type(ftype);
 			switch (t) {
 			case MONO_TYPE_I4:
 			case MONO_TYPE_U4:
@@ -1911,7 +1911,7 @@ emit_struct_conv (MonoMethodBuilder *mb, MonoClass *klass, gboolean to_object)
 			}
 
 			default: 
-				g_warning ("marshaling type %02x not implemented", ftype->type);
+				g_warning ("marshaling type %02x not implemented", mono_type_get_type(ftype));
 				g_assert_not_reached ();
 			}
 			break;
@@ -2263,7 +2263,7 @@ mono_marshal_need_free (MonoType *t, MonoMethodPInvoke *piinfo, MonoMarshalSpec 
 	MonoMarshalNative encoding;
 	MonoMarshalConv conv;
 
-	switch (t->type) {
+	switch (mono_type_get_type(t)) {
 	case MONO_TYPE_VALUETYPE:
 		/* FIXME: Optimize this */
 		return TRUE;
@@ -2407,7 +2407,7 @@ mono_remoting_mb_create_and_cache (MonoMethod *key, MonoMethodBuilder *mb,
 		g_hash_table_insert (cache, key, wrps);
 	}
 
-	switch (mb->mono_method_get_wrapper_type(method)) {
+	switch (mb->method->wrapper_type) {
 	case MONO_WRAPPER_REMOTING_INVOKE: res = &wrps->invoke; break;
 	case MONO_WRAPPER_REMOTING_INVOKE_WITH_CHECK: res = &wrps->invoke_with_check; break;
 	case MONO_WRAPPER_XDOMAIN_INVOKE: res = &wrps->xdomain_invoke; break;
@@ -2571,7 +2571,7 @@ mono_mb_emit_restore_result (MonoMethodBuilder *mb, MonoType *return_type)
 	if (return_type->byref)
 		return_type = &mono_defaults.int_class->byval_arg;
 
-	switch (t->type) {
+	switch (mono_type_get_type(t)) {
 	case MONO_TYPE_VOID:
 		g_assert_not_reached ();
 		break;
@@ -2611,7 +2611,7 @@ mono_mb_emit_restore_result (MonoMethodBuilder *mb, MonoType *return_type)
 		break;
 	}
 	default:
-		g_warning ("type 0x%x not handled", return_type->type);
+		g_warning ("type 0x%x not handled", mono_type_get_type(return_type));
 		g_assert_not_reached ();
 	}
 
@@ -2784,7 +2784,7 @@ mono_marshal_get_remoting_invoke (MonoMethod *method)
 static MonoXDomainMarshalType
 mono_get_xdomain_marshal_type (MonoType *t)
 {
-	switch (t->type) {
+	switch (mono_type_get_type(t)) {
 	case MONO_TYPE_VOID:
 		g_assert_not_reached ();
 		break;
@@ -3721,7 +3721,7 @@ mono_marshal_get_delegate_invoke (MonoMethod *method, MonoDelegate *del)
 	if (del && !del->target && del->method && mono_method_signature (del->method)->hasthis) {
 		callvirt = TRUE;
 		target_method = del->method;
-		if (target_mono_method_get_is_inflated(method)) {
+		if (target_method->is_inflated) {
 			MonoType *target_type;
 
 			g_assert (method->signature->hasthis);
@@ -3982,7 +3982,7 @@ get_runtime_invoke_type (MonoType *t, gboolean ret)
 		return t;
 
 handle_enum:
-	switch (t->type) {
+	switch (mono_type_get_type(t)) {
 	case MONO_TYPE_U1:
 		return &mono_defaults.sbyte_class->byval_arg;
 	case MONO_TYPE_U2:
@@ -4289,7 +4289,7 @@ mono_marshal_get_runtime_invoke (MonoMethod *method, gboolean virtual)
 			/* A Nullable<T> type don't have a boxed form, it's either null or a boxed T.
 			 * So to make this work we unbox it to a local variablee and push a reference to that.
 			 */
-			if (t->type == MONO_TYPE_GENERICINST && mono_class_is_nullable (mono_class_from_mono_type (t))) {
+			if (mono_type_get_type(t) == MONO_TYPE_GENERICINST && mono_class_is_nullable (mono_class_from_mono_type (t))) {
 				tmp_nullable_locals [i] = mono_mb_add_local (mb, &mono_class_from_mono_type (t)->byval_arg);
 
 				mono_mb_emit_op (mb, CEE_UNBOX_ANY, mono_class_from_mono_type (t));
@@ -4300,7 +4300,7 @@ mono_marshal_get_runtime_invoke (MonoMethod *method, gboolean virtual)
 		}
 
 		/*FIXME 'this doesn't handle generic enums. Shouldn't we?*/
-		type = sig->params [i]->type;
+		type = mono_type_get_type(sig->params [i]);
 handle_enum:
 		switch (type) {
 		case MONO_TYPE_I1:
@@ -4337,7 +4337,7 @@ handle_enum:
 			/* fall through */
 		case MONO_TYPE_VALUETYPE:
 			if (type == MONO_TYPE_VALUETYPE && t->data.klass->enumtype) {
-				type = mono_class_enum_basetype (t->data.klass)->type;
+				type = mono_type_get_type(mono_class_enum_basetype (t->data.klass));
 				goto handle_enum;
 			}
 			mono_mb_emit_byte (mb, CEE_LDIND_I);
@@ -4418,7 +4418,7 @@ handle_enum:
 		 * Box the result and put it back into the array, the caller will have
 		 * to obtain it from there.
 		 */
-		if (t->byref && t->type == MONO_TYPE_GENERICINST && mono_class_is_nullable (mono_class_from_mono_type (t))) {
+		if (t->byref && mono_type_get_type(t) == MONO_TYPE_GENERICINST && mono_class_is_nullable (mono_class_from_mono_type (t))) {
 			mono_mb_emit_ldarg (mb, 1);			
 			mono_mb_emit_icon (mb, sizeof (gpointer) * i);
 			mono_mb_emit_byte (mb, CEE_ADD);
@@ -5272,9 +5272,9 @@ emit_marshal_custom (EmitMarshalContext *m, int argnum, MonoType *t,
 	get_instance = mono_class_get_method_from_name_flags (mklass, "GetInstance", 1, METHOD_ATTRIBUTE_STATIC);
 	if (get_instance) {
 		MonoMethodSignature *get_sig = mono_method_signature (get_instance);
-		if ((get_sig->ret->type != MONO_TYPE_CLASS) ||
+		if ((mono_type_get_type(get_sig->ret) != MONO_TYPE_CLASS) ||
 			(mono_class_from_mono_type (get_sig->ret) != ICustomMarshaler) ||
-			(get_sig->params [0]->type != MONO_TYPE_STRING))
+			(mono_type_get_type(get_sig->params [0]) != MONO_TYPE_STRING))
 			get_instance = NULL;
 	}
 
@@ -5308,7 +5308,7 @@ emit_marshal_custom (EmitMarshalContext *m, int argnum, MonoType *t,
 
 	switch (action) {
 	case MARSHAL_ACTION_CONV_IN:
-		switch (t->type) {
+		switch (mono_type_get_type(t)) {
 		case MONO_TYPE_CLASS:
 		case MONO_TYPE_OBJECT:
 		case MONO_TYPE_STRING:
@@ -5318,7 +5318,7 @@ emit_marshal_custom (EmitMarshalContext *m, int argnum, MonoType *t,
 			break;
 
 		default:
-			g_warning ("custom marshalling of type %x is currently not supported", t->type);
+			g_warning ("custom marshalling of type %x is currently not supported", mono_type_get_type(t));
 			g_assert_not_reached ();
 			break;
 		}
@@ -5349,7 +5349,7 @@ emit_marshal_custom (EmitMarshalContext *m, int argnum, MonoType *t,
 		if (t->byref)
 			mono_mb_emit_byte (mb, CEE_LDIND_REF);
 
-		if (t->type == MONO_TYPE_VALUETYPE) {
+		if (mono_type_get_type(t) == MONO_TYPE_VALUETYPE) {
 			/*
 			 * Since we can't determine the type of the argument, we
 			 * will assume the unmanaged function takes a pointer.
@@ -5541,7 +5541,7 @@ emit_marshal_asany (EmitMarshalContext *m, int argnum, MonoType *t,
 	case MARSHAL_ACTION_CONV_IN: {
 		MonoMarshalNative encoding = mono_marshal_get_string_encoding (m->piinfo, NULL);
 
-		g_assert (t->type == MONO_TYPE_OBJECT);
+		g_assert (mono_type_get_type(t) == MONO_TYPE_OBJECT);
 		g_assert (!t->byref);
 
 		conv_arg = mono_mb_add_local (mb, &mono_defaults.int_class->byval_arg);
@@ -7760,7 +7760,7 @@ emit_marshal (EmitMarshalContext *m, int argnum, MonoType *t,
 	if (spec && spec->native == MONO_NATIVE_ASANY)
 		return emit_marshal_asany (m, argnum, t, spec, conv_arg, conv_arg_type, action);
 			
-	switch (t->type) {
+	switch (mono_type_get_type(t)) {
 	case MONO_TYPE_VALUETYPE:
 		if (t->data.klass == mono_defaults.handleref_class)
 			return emit_marshal_handleref (m, argnum, t, spec, conv_arg, conv_arg_type, action);
@@ -8010,7 +8010,7 @@ mono_marshal_emit_native_wrapper (MonoImage *image, MonoMethodBuilder *mb, MonoM
 			continue;
 		}
 
-		switch (t->type) {
+		switch (mono_type_get_type(t)) {
 		case MONO_TYPE_STRING:
 		case MONO_TYPE_VALUETYPE:
 		case MONO_TYPE_CLASS:
@@ -8308,7 +8308,7 @@ mono_marshal_emit_managed_wrapper (MonoMethodBuilder *mb, MonoMethodSignature *i
 	for (i = 0; i < sig->param_count; i ++) {
 		MonoType *t = sig->params [i];
 
-		switch (t->type) {
+		switch (mono_type_get_type(t)) {
 		case MONO_TYPE_OBJECT:
 		case MONO_TYPE_CLASS:
 		case MONO_TYPE_VALUETYPE:
@@ -8405,7 +8405,7 @@ mono_marshal_emit_managed_wrapper (MonoMethodBuilder *mb, MonoMethodSignature *i
 			emit_marshal (m, i, t, mspecs [i + 1], tmp_locals [i], NULL, MARSHAL_ACTION_MANAGED_CONV_OUT);
 		}
 		else if (t->byref) {
-			switch (t->type) {
+			switch (mono_type_get_type(t)) {
 			case MONO_TYPE_CLASS:
 			case MONO_TYPE_VALUETYPE:
 			case MONO_TYPE_OBJECT:
@@ -8417,7 +8417,7 @@ mono_marshal_emit_managed_wrapper (MonoMethodBuilder *mb, MonoMethodSignature *i
 		}
 		else if (invoke_sig->params [i]->attrs & PARAM_ATTRIBUTE_OUT) {
 			/* The [Out] information is encoded in the delegate signature */
-			switch (t->type) {
+			switch (mono_type_get_type(t)) {
 			case MONO_TYPE_SZARRAY:
 			case MONO_TYPE_CLASS:
 			case MONO_TYPE_VALUETYPE:
@@ -9936,7 +9936,7 @@ ves_icall_System_Runtime_InteropServices_Marshal_PtrToStructure (gpointer src, M
 	
 	t = mono_type_get_underlying_type (mono_class_get_type (dst->vtable->klass));
 
-	if (t->type == MONO_TYPE_VALUETYPE) {
+	if (mono_type_get_type(t) == MONO_TYPE_VALUETYPE) {
 		MonoException *exc;
 		gchar *tmp;
 
@@ -10451,7 +10451,7 @@ mono_type_native_stack_size (MonoType *t, guint32 *align)
 		return sizeof (gpointer);
 	}
 
-	switch (t->type){
+	switch (mono_type_get_type(t)){
 	case MONO_TYPE_BOOLEAN:
 	case MONO_TYPE_CHAR:
 	case MONO_TYPE_I1:
@@ -10508,7 +10508,7 @@ mono_type_native_stack_size (MonoType *t, guint32 *align)
 		}
 	}
 	default:
-		g_error ("type 0x%02x unknown", t->type);
+		g_error ("type 0x%02x unknown", mono_type_get_type(t));
 	}
 	return 0;
 }
@@ -10617,7 +10617,7 @@ mono_marshal_asany (MonoObject *o, MonoMarshalNative string_encoding, int param_
 		return NULL;
 
 	t = &o->vtable->klass->byval_arg;
-	switch (t->type) {
+	switch (mono_type_get_type(t)) {
 	case MONO_TYPE_I4:
 	case MONO_TYPE_U4:
 	case MONO_TYPE_PTR:
@@ -10693,7 +10693,7 @@ mono_marshal_free_asany (MonoObject *o, gpointer ptr, MonoMarshalNative string_e
 		return;
 
 	t = &o->vtable->klass->byval_arg;
-	switch (t->type) {
+	switch (mono_type_get_type(t)) {
 	case MONO_TYPE_STRING:
 		switch (string_encoding) {
 		case MONO_NATIVE_LPWSTR:

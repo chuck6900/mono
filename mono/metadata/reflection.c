@@ -4763,7 +4763,7 @@ mono_image_create_token (MonoDynamicImage *assembly, MonoObject *obj,
 		   strcmp (klass->name, "MonoGenericMethod") == 0 ||
 		   strcmp (klass->name, "MonoGenericCMethod") == 0) {
 		MonoReflectionMethod *m = (MonoReflectionMethod *)obj;
-		if (m->mono_method_get_is_inflated(method)) {
+		if (m->method->is_inflated) {
 			if (create_methodspec)
 				token = mono_image_get_methodspec_token (assembly, m->method);
 			else
@@ -7537,7 +7537,7 @@ mono_reflection_get_token (MonoObject *obj)
 		   strcmp (klass->name, "MonoGenericMethod") == 0 ||
 		   strcmp (klass->name, "MonoGenericCMethod") == 0) {
 		MonoReflectionMethod *m = (MonoReflectionMethod *)obj;
-		if (m->mono_method_get_is_inflated(method)) {
+		if (m->method->is_inflated) {
 			MonoMethodInflated *inflated = (MonoMethodInflated *) m->method;
 			return inflated->declaring->token;
 		} else {

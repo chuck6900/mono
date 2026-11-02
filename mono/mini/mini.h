@@ -1508,11 +1508,22 @@ void      mono_liveness_handle_exception_clauses (MonoCompile *cfg) MONO_INTERNA
 
 typedef void*(* file_offset_hook)(void* base, uint32_t addr, void** orig, int size);
 void mono_set_base_addr(uint8_t* base, file_offset_hook hook);
+
+extern gboolean mono_use_be_bitfield_accessors;
+extern void mono_set_use_be_bitfield_accessors(gboolean value);
+
 #ifdef __cplusplus
 #define fix(addr) static_cast<decltype(addr)>(fix_impl((void*)(addr), (void**)&(addr)))
 #else
 #define fix(addr) fix_impl((void*)(addr), (void**)&(addr))
 #endif
+
+#ifdef __cplusplus
+#define fix_no_overwrite(addr) static_cast<decltype(addr)>(fix_impl((void*)(addr), nullptr))
+#else
+#define fix_no_overwrite(addr) fix_impl((void*)(addr), 0x0)
+#endif
+
 #ifdef __cplusplus
 #define fix_v(addr) (*((decltype(addr)*)fix_impl_v((void*)(&(addr)), sizeof(addr))))
 #else

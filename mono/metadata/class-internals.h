@@ -24,6 +24,8 @@
 #ifndef MONO_BE_BITFIELD_ACCESSORS_DEFINED
 #define MONO_BE_BITFIELD_ACCESSORS_DEFINED
 
+extern gboolean mono_use_be_bitfield_accessors;
+
 static inline guint32
 mono_be_bitfield_load (const guint8 *storage, guint size)
 {
@@ -82,21 +84,31 @@ mono_be_bitfield_get_signed (const guint8 *storage, guint size, guint shift, gui
 #define MONO_DEFINE_BE_BITFIELD_ACCESSORS(struct_type, prefix, storage_member, field, value_type, shift, width) \
     static inline value_type prefix##_get_##field (const struct_type *instance) \
     { \
-        return (value_type)mono_be_bitfield_get (instance->storage_member, sizeof (instance->storage_member), shift, width); \
+        return mono_use_be_bitfield_accessors \
+            ? (value_type)mono_be_bitfield_get (instance->storage_member, sizeof (instance->storage_member), shift, width) \
+            : (value_type)instance->field; \
     } \
     static inline void prefix##_set_##field (struct_type *instance, value_type value) \
     { \
-        mono_be_bitfield_set (instance->storage_member, sizeof (instance->storage_member), shift, width, (guint32)value); \
+        if (mono_use_be_bitfield_accessors) \
+            mono_be_bitfield_set (instance->storage_member, sizeof (instance->storage_member), shift, width, (guint32)value); \
+        else \
+            instance->field = value; \
     }
 
 #define MONO_DEFINE_BE_SIGNED_BITFIELD_ACCESSORS(struct_type, prefix, storage_member, field, value_type, shift, width) \
     static inline value_type prefix##_get_##field (const struct_type *instance) \
     { \
-        return (value_type)mono_be_bitfield_get_signed (instance->storage_member, sizeof (instance->storage_member), shift, width); \
+        return mono_use_be_bitfield_accessors \
+            ? (value_type)mono_be_bitfield_get_signed (instance->storage_member, sizeof (instance->storage_member), shift, width) \
+            : (value_type)instance->field; \
     } \
     static inline void prefix##_set_##field (struct_type *instance, value_type value) \
     { \
-        mono_be_bitfield_set (instance->storage_member, sizeof (instance->storage_member), shift, width, (guint32)value); \
+        if (mono_use_be_bitfield_accessors) \
+            mono_be_bitfield_set (instance->storage_member, sizeof (instance->storage_member), shift, width, (guint32)value); \
+        else \
+            instance->field = value; \
     }
 
 #endif /* MONO_BE_BITFIELD_ACCESSORS_DEFINED */
@@ -156,7 +168,23 @@ struct _MonoMethod {
     /* name is useful mostly for debugging */
     const char *name;
     /* this is used by the inlining algorithm */
-    guint8 _bitfield_data[4]; /* PowerPC big-endian bitfield storage */
+    union {
+        guint8 _bitfield_data[4];
+        struct {
+            guint32 inline_info : 1;
+            guint32 inline_failure : 1;
+            guint32 wrapper_type : 5;
+            guint32 string_ctor : 1;
+            guint32 save_lmf : 1;
+            guint32 dynamic : 1;
+            guint32 is_generic : 1;
+            guint32 is_inflated : 1;
+            guint32 skip_visibility : 1;
+            guint32 verification_success : 1;
+            guint32 is_mb_open : 1;
+            gint32 slot : 17;
+        };
+    }; /* PowerPC big-endian bitfield storage */
 
     /*
      * If is_generic is TRUE, the generic_container is stored in image->property_hash,
@@ -388,7 +416,19 @@ struct _MonoClass {
 
     int        instance_size; /* object instance size */
 
-    guint8 _bitfield_flags0[1]; /* first MonoClass bitfield run */
+    union {
+        guint8 _bitfield_flags0[1];
+        struct {
+            guint8 inited : 1;
+            guint8 init_pending : 1;
+            guint8 size_inited : 1;
+            guint8 valuetype : 1;
+            guint8 enumtype : 1;
+            guint8 blittable : 1;
+            guint8 unicode : 1;
+            guint8 wastypebuilder : 1;
+        };
+    }; /* first MonoClass bitfield run */
 
     /* A class contains static and non static data. Static data can be
      * of the same type as the class itselfs, but it does not influence
@@ -401,7 +441,28 @@ struct _MonoClass {
     /* next byte */
     guint8 min_align;
     /* next byte */
-    guint8 _bitfield_flags1[3]; /* second MonoClass bitfield run */
+    union {
+        guint8 _bitfield_flags1[3];
+        struct {
+            guint8 packing_size : 4;
+            guint8 ghcimpl : 1;
+            guint8 has_finalize : 1;
+            guint8 marshalbyref : 1;
+            guint8 contextbound : 1;
+            guint8 delegate : 1;
+            guint8 gc_descr_inited : 1;
+            guint8 has_cctor : 1;
+            guint8 has_references : 1;
+            guint8 has_static_refs : 1;
+            guint8 no_special_static_fields : 1;
+            guint8 is_com_object : 1;
+            guint8 nested_classes_inited : 1;
+            guint8 interfaces_inited : 1;
+            guint8 simd_type : 1;
+            guint8 is_generic : 1;
+            guint8 is_inflated : 1;
+        };
+    }; /* second MonoClass bitfield run */
 
     guint8     exception_type; /* MONO_EXCEPTION_* */
 
@@ -523,7 +584,14 @@ struct MonoVTable {
     guint8     *interface_bitmap;
     guint16     max_interface_id;
     guint8      rank;
-    guint8 _bitfield_flags[1]; /* remote, initialized, init_failed */
+    union {
+        guint8 _bitfield_flags[1];
+        struct {
+            guint8 remote : 1;
+            guint8 initialized : 1;
+            guint8 init_failed : 1;
+        };
+    }; /* remote, initialized, init_failed */
     guint32     imt_collisions_bitmap;
     MonoRuntimeGenericContext *runtime_generic_context;
     /* do not add any fields after vtable, the structure is dynamically extended */
@@ -550,7 +618,13 @@ MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoVTable, mono_vtable, _bitfield_flags, ini
  */
 struct _MonoGenericInst {
     guint id;        /* unique ID for debugging */
-    guint8 _bitfield_flags[3]; /* type_argc and is_open */
+    union {
+        guint8 _bitfield_flags[3];
+        struct {
+            guint32 type_argc : 22;
+            guint32 is_open : 1;
+        };
+    }; /* type_argc and is_open */
     MonoType *type_argv [MONO_ZERO_LEN_ARRAY];
 };
 
@@ -591,7 +665,13 @@ struct _MonoMethodInflated {
 struct _MonoGenericClass {
     MonoClass *container_class;    /* the generic type definition */
     MonoGenericContext context;    /* a context that contains the type instantiation doesn't contain any method instantiation */
-    guint8 _bitfield_flags[1]; /* is_dynamic and is_tb_open */
+    union {
+        guint8 _bitfield_flags[1];
+        struct {
+            guint32 is_dynamic : 1;
+            guint32 is_tb_open : 1;
+        };
+    }; /* is_dynamic and is_tb_open */
     MonoClass *cached_class;   /* if present, the MonoClass corresponding to the instantiation.  */
 };
 
@@ -665,7 +745,13 @@ struct _MonoGenericContainer {
        MonoClass *klass;
        MonoMethod *method;
     } owner;
-    guint8 _bitfield_flags[4]; /* signed type_argc and is_method */
+    union {
+        guint8 _bitfield_flags[4];
+        struct {
+            gint32 type_argc : 31;
+            guint32 is_method : 1;
+        };
+    }; /* signed type_argc and is_method */
     /* Our type parameters. */
     MonoGenericParamFull *type_params;
 
@@ -696,7 +782,19 @@ MONO_DEFINE_BE_BITFIELD_ACCESSORS (MonoGenericContainer, mono_generic_container,
  */
 typedef struct MonoCachedClassInfo {
     guint32 vtable_size;
-    guint8 _bitfield_flags[1]; /* cached class flags */
+    union {
+        guint8 _bitfield_flags[1];
+        struct {
+            guint32 has_finalize : 1;
+            guint32 ghcimpl : 1;
+            guint32 has_cctor : 1;
+            guint32 has_nested_classes : 1;
+            guint32 blittable : 1;
+            guint32 has_references : 1;
+            guint32 has_static_refs : 1;
+            guint32 no_special_static_fields : 1;
+        };
+    }; /* cached class flags */
     guint32 cctor_token;
     MonoImage *finalize_image;
     guint32 finalize_token;

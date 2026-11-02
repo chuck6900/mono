@@ -187,7 +187,7 @@ mono_convert_imt_slot_to_vtable_slot (gpointer* slot, mgreg_t *regs, guint8 *cod
 		if (impl_method) {
 			MonoMethod *impl;
 
-			if (imt_mono_method_get_is_inflated(method) && ((MonoMethodInflated*)imt_method)->context.method_inst) {
+			if (imt_method->is_inflated && ((MonoMethodInflated*)imt_method)->context.method_inst) {
 				MonoGenericContext context = { NULL, NULL };
 
 				/* 
@@ -449,7 +449,7 @@ mono_magic_trampoline (mgreg_t *regs, guint8 *code, gpointer arg, guint8* tramp)
 		g_assert (actual_method);
 		g_assert (actual_method->klass == klass);
 
-		if (actual_mono_method_get_is_inflated(method))
+		if (actual_method->is_inflated)
 			declaring = mono_method_get_declaring_generic_method (actual_method);
 		else
 			declaring = NULL;
@@ -466,7 +466,7 @@ mono_magic_trampoline (mgreg_t *regs, guint8 *code, gpointer arg, guint8* tramp)
 			ji = NULL;
 
 		/* Avoid recursion */
-		if (!(ji && ji->mono_method_get_wrapper_type(method) == MONO_WRAPPER_SYNCHRONIZED))
+		if (!(ji && ji->method->wrapper_type == MONO_WRAPPER_SYNCHRONIZED))
 			m = mono_marshal_get_synchronized_wrapper (m);
 	}
 
@@ -662,7 +662,7 @@ mono_generic_virtual_remoting_trampoline (mgreg_t *regs, guint8 *code, MonoMetho
 
 #ifdef MONO_ARCH_HAVE_IMT
 	imt_method = mono_arch_find_imt_method (regs, code);
-	if (imt_mono_method_get_is_inflated(method))
+	if (imt_method->is_inflated)
 		context.method_inst = ((MonoMethodInflated*)imt_method)->context.method_inst;
 #endif
 	m = mono_class_inflate_generic_method (declaring, &context);

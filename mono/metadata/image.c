@@ -625,8 +625,12 @@ mono_image_init (MonoImage *image)
 	image->method_signatures = g_hash_table_new (NULL, NULL);
 
 	image->property_hash = mono_property_hash_new ();
-	InitializeCriticalSection (&image->lock);
-	InitializeCriticalSection (&image->szarray_cache_lock);
+
+    image->lock.mutex = malloc(sizeof(CRITICAL_SECTION));
+    image->szarray_cache_lock.mutex = malloc(sizeof(CRITICAL_SECTION));
+
+	InitializeCriticalSection (image->lock.mutex);
+	InitializeCriticalSection (image->szarray_cache_lock.mutex);
 }
 
 #if G_BYTE_ORDER != G_LITTLE_ENDIAN
@@ -1998,7 +2002,7 @@ mono_image_get_public_key (MonoImage *image, guint32 *size)
 const char*
 mono_image_get_name (MonoImage *image)
 {
-	return image->assembly_name;
+	return fix(image->assembly_name);
 }
 
 /**
@@ -2012,13 +2016,13 @@ mono_image_get_name (MonoImage *image)
 const char*
 mono_image_get_filename (MonoImage *image)
 {
-	return image->name;
+	return fix(image->name);
 }
 
 const char*
 mono_image_get_guid (MonoImage *image)
 {
-	return image->guid;
+	return fix(image->guid);
 }
 
 const MonoTableInfo*
@@ -2054,7 +2058,7 @@ mono_table_info_get_rows (const MonoTableInfo *table)
 MonoAssembly* 
 mono_image_get_assembly (MonoImage *image)
 {
-	return image->assembly;
+	return fix(image->assembly);
 }
 
 /**
@@ -2069,7 +2073,7 @@ mono_image_get_assembly (MonoImage *image)
 gboolean
 mono_image_is_dynamic (MonoImage *image)
 {
-	return image->dynamic;
+	return mono_image_get_dynamic(image);
 }
 
 /**

@@ -717,7 +717,7 @@ inflate_generic_signature_checked (MonoImage *image, MonoMethodSignature *sig, M
 	if (!context)
 		return sig;
 
-	res = g_malloc0 (MONO_SIZEOF_METHOD_SIGNATURE + ((gint32)sig->param_count) * sizeof (MonoType*));
+	res = g_malloc0 (MONO_SIZEOF_METHOD_SIGNATURE + ((gint32)fix_v(sig->param_count)) * sizeof (MonoType*));
 	res->param_count = sig->param_count;
 	res->sentinelpos = -1;
 	res->ret = mono_class_inflate_generic_type_checked (sig->ret, context, error);
@@ -725,7 +725,7 @@ inflate_generic_signature_checked (MonoImage *image, MonoMethodSignature *sig, M
 		goto fail;
 	is_open = mono_class_is_open_constructed_type (res->ret);
 	for (i = 0; i < sig->param_count; ++i) {
-		res->params [i] = mono_class_inflate_generic_type_checked (sig->params [i], context, error);
+		res->params [i] = mono_class_inflate_generic_type_checked (fix(sig->params [i]), context, error);
 		if (!mono_error_ok (error))
 			goto fail;
 
@@ -2142,7 +2142,7 @@ mono_method_signature (MonoMethod *m)
 		return m->signature;
 	}
 
-	if (m->is_inflated) {
+	if (mono_method_get_is_inflated(m)) {
 		MonoMethodInflated *imethod = (MonoMethodInflated *) m;
 		/* the lock is recursive */
 		signature = mono_method_signature (fix(imethod->declaring));
@@ -2201,29 +2201,29 @@ mono_method_signature (MonoMethod *m)
 	}
 
 	/* Verify metadata consistency */
-	if (signature->generic_param_count) {
-		if (!container || !container->is_method) {
+	if (mono_method_signature_get_generic_param_count(signature)) {
+		if (!container || !mono_generic_container_get_is_method(container)) {
 			g_warning ("Signature claims method has generic parameters, but generic_params table says it doesn't for method 0x%08x from image %s", idx, img->name);
 			mono_loader_unlock ();
 			return NULL;
 		}
-		if (container->type_argc != signature->generic_param_count) {
+		if (mono_generic_container_get_type_argc(container) != mono_method_signature_get_generic_param_count(signature)) {
 			g_warning ("Inconsistent generic parameter count.  Signature says %d, generic_params table says %d for method 0x%08x from image %s",
-				 signature->generic_param_count, container->type_argc, idx, img->name);
+				 mono_method_signature_get_generic_param_count(signature), mono_generic_container_get_type_argc(container), idx, img->name);
 			mono_loader_unlock ();
 			return NULL;
 		}
-	} else if (container && container->is_method && container->type_argc) {
+	} else if (container && mono_generic_container_get_is_method(container) && mono_generic_container_get_type_argc(container)) {
 		g_warning ("generic_params table claims method has generic parameters, but signature says it doesn't for method 0x%08x from image %s", idx, img->name);
 		mono_loader_unlock ();
 		return NULL;
 	}
 	if (m->iflags & METHOD_IMPL_ATTRIBUTE_INTERNAL_CALL)
-		signature->pinvoke = 1;
+	    mono_method_signature_set_pinvoke(signature, 1);
 	else if (m->flags & METHOD_ATTRIBUTE_PINVOKE_IMPL) {
 		MonoCallConvention conv = 0;
 		MonoMethodPInvoke *piinfo = (MonoMethodPInvoke *)m;
-		signature->pinvoke = 1;
+		mono_method_signature_set_pinvoke(signature, 1);
 
 		switch (piinfo->piflags & PINVOKE_ATTRIBUTE_CALL_CONV_MASK) {
 		case 0: /* no call conv, so using default */
@@ -2249,7 +2249,7 @@ mono_method_signature (MonoMethod *m)
 			mono_loader_unlock ();
 			return NULL;
 		}
-		signature->call_convention = conv;
+	    mono_method_signature_set_call_convention(signature, conv);
 	}
 
 	mono_memory_barrier ();
@@ -2262,19 +2262,19 @@ mono_method_signature (MonoMethod *m)
 const char*
 mono_method_get_name (MonoMethod *method)
 {
-	return method->name;
+	return fix(method->name);
 }
 
 MonoClass*
 mono_method_get_class (MonoMethod *method)
 {
-	return method->klass;
+	return fix(method->klass);
 }
 
 guint32
 mono_method_get_token (MonoMethod *method)
 {
-	return method->token;
+	return fix_v(method->token);
 }
 
 MonoMethodHeader*
@@ -2321,7 +2321,7 @@ mono_method_get_header (MonoMethod *method)
 	 */
 	g_assert (mono_metadata_token_table (method->token) == MONO_TABLE_METHOD);
 	idx = mono_metadata_token_index (method->token);
-	img = method->klass->image;
+	img = fix(method->klass->image);
 	rva = mono_metadata_decode_row_col (&img->tables [MONO_TABLE_METHOD], idx - 1, MONO_METHOD_RVA);
 
 	if (!mono_verifier_verify_method_header (img, rva, NULL))

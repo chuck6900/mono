@@ -83,8 +83,8 @@ append_class_name (GString *res, MonoClass *class, gboolean include_namespace)
 		append_class_name (res, fix(class->nested_in), include_namespace);
 		g_string_append_c (res, '/');
 	}
-	if (include_namespace && *class->name_space)
-		g_string_append_printf (res, "%s.", fix(class->name_space));
+	if (include_namespace && *(char*)fix(class->name_space))
+		g_string_append_printf (res, "%s.", class->name_space);
 	g_string_append_printf (res, "%s", fix(class->name));
 }
 
@@ -118,7 +118,7 @@ mono_type_get_desc (GString *res, MonoType *type, gboolean include_namespace)
 {
 	int i;
 
-	switch (type->type) {
+	switch (mono_type_get_type(type)) {
 	case MONO_TYPE_VOID:
 		g_string_append (res, "void"); break;
 	case MONO_TYPE_CHAR:
@@ -184,10 +184,7 @@ mono_type_get_desc (GString *res, MonoType *type, gboolean include_namespace)
 		context = &type->data.generic_class->context;
 		if (fix(context->class_inst)) {
 
-		    int argc = context->class_inst->type_argc;
-		    fix_v(argc);
-
-			for (i = 0; i < argc; ++i) {
+			for (i = 0; i < mono_generic_inst_get_type_argc(context->class_inst); ++i) {
 				if (i > 0)
 					g_string_append (res, ", ");
 				mono_type_get_desc (res, fix(context->class_inst->type_argv [i]), include_namespace);
@@ -197,10 +194,7 @@ mono_type_get_desc (GString *res, MonoType *type, gboolean include_namespace)
 			if (fix(context->class_inst))
 					g_string_append (res, "; ");
 
-		    int argc = context->class_inst->type_argc;
-		    fix_v(argc);
-
-			for (i = 0; i < argc; ++i) {
+			for (i = 0; i < mono_generic_inst_get_type_argc(context->class_inst); ++i) {
 				if (i > 0)
 					g_string_append (res, ", ");
 				mono_type_get_desc (res, fix(context->method_inst->type_argv [i]), include_namespace);
@@ -211,12 +205,12 @@ mono_type_get_desc (GString *res, MonoType *type, gboolean include_namespace)
 	}
 	case MONO_TYPE_VAR:
 	case MONO_TYPE_MVAR:
-		if (type->data.generic_param) {
+		if (fix(type->data.generic_param)) {
 			MonoGenericParamInfo *info = mono_generic_param_info (type->data.generic_param);
 			if (info)
 				g_string_append (res, info->name);
 			else
-				g_string_append_printf (res, "%s%d", type->type == MONO_TYPE_VAR ? "!" : "!!", mono_generic_param_num (type->data.generic_param));
+				g_string_append_printf (res, "%s%d", mono_type_get_type(type) == MONO_TYPE_VAR ? "!" : "!!", mono_generic_param_num (type->data.generic_param));
 		} else {
 			g_string_append (res, "<unknown>");
 		}
@@ -224,7 +218,7 @@ mono_type_get_desc (GString *res, MonoType *type, gboolean include_namespace)
 	default:
 		break;
 	}
-	if (type->byref)
+	if (mono_type_get_byref(type))
 		g_string_append_c (res, '&');
 }
 
@@ -265,7 +259,7 @@ ginst_get_desc (GString *str, MonoGenericInst *ginst)
 {
 	int i;
 
-	for (i = 0; i < ginst->type_argc; ++i) {
+	for (i = 0; i < mono_generic_inst_get_type_argc(ginst); ++i) {
 		if (i > 0)
 			g_string_append (str, ", ");
 		mono_type_get_desc (str, fix(ginst->type_argv [i]), TRUE);
@@ -871,7 +865,7 @@ print_field_value (const char *field_ptr, MonoClassField *field, int type_offset
 	g_print ("At %p (ofs: %2d) %s: ", field_ptr, field->offset + type_offset, mono_field_get_name (field));
 	type = mono_type_get_underlying_type (field->type);
 
-	switch (type->type) {
+	switch (mono_type_get_type(type)) {
 	case MONO_TYPE_I:
 	case MONO_TYPE_U:
 	case MONO_TYPE_PTR:

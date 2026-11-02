@@ -31,6 +31,11 @@
 #include "marshal.h"
 #include <mono/utils/mono-error-internals.h>
 
+gboolean mono_use_be_bitfield_accessors = 0;
+void mono_set_use_be_bitfield_accessors(gboolean value) {
+    mono_use_be_bitfield_accessors = value;
+}
+
 static gboolean do_mono_metadata_parse_type (MonoType *type, MonoImage *m, MonoGenericContainer *container,
 					 const char *ptr, const char **rptr);
 
@@ -1385,10 +1390,10 @@ static guint
 mono_type_hash (gconstpointer data)
 {
 	const MonoType *type = (const MonoType *) data;
-	if (mono_type_get_type_code(type) == MONO_TYPE_GENERICINST)
+	if (mono_type_get_type(type) == MONO_TYPE_GENERICINST)
 		return mono_generic_class_hash (type->data.generic_class);
 	else
-		return mono_type_get_type_code(type) | (mono_type_get_byref(type) << 8) | (mono_type_get_attrs(type) << 9);
+		return mono_type_get_type(type) | (mono_type_get_byref(type) << 8) | (mono_type_get_attrs(type) << 9);
 }
 
 static gint
@@ -1397,7 +1402,7 @@ mono_type_equal (gconstpointer ka, gconstpointer kb)
 	const MonoType *a = (const MonoType *) ka;
 	const MonoType *b = (const MonoType *) kb;
 	
-	if (mono_type_get_type_code(a) != mono_type_get_type_code(b) ||
+	if (mono_type_get_type(a) != mono_type_get_type(b) ||
 	    mono_type_get_byref(a) != mono_type_get_byref(b) ||
 	    mono_type_get_attrs(a) != mono_type_get_attrs(b) ||
 	    mono_type_get_pinned(a) != mono_type_get_pinned(b))
@@ -1630,7 +1635,7 @@ mono_metadata_parse_type_full (MonoImage *m, MonoGenericContainer *container, Mo
 
 	if (!mono_type_get_num_mods(type)) {
 		/* no need to free type here, because it is on the stack */
-		if ((mono_type_get_type_code(type) == MONO_TYPE_CLASS || mono_type_get_type_code(type) == MONO_TYPE_VALUETYPE) && !mono_type_get_pinned(type) && !mono_type_get_attrs(type)) {
+		if ((mono_type_get_type(type) == MONO_TYPE_CLASS || mono_type_get_type(type) == MONO_TYPE_VALUETYPE) && !mono_type_get_pinned(type) && !mono_type_get_attrs(type)) {
 			MonoType *ret = mono_type_get_byref(type) ? &type->data.klass->this_arg : &type->data.klass->byval_arg;
 
 			/* Consider the case:
@@ -2110,7 +2115,7 @@ ginst_in_image (MonoGenericInst *ginst, MonoImage *image)
 {
 	int i;
 
-	for (i = 0; i < ginst->type_argc; ++i) {
+	for (i = 0; i < mono_generic_inst_get_type_argc(ginst); ++i) {
 		if (type_in_image (ginst->type_argv [i], image))
 			return TRUE;
 	}
@@ -4154,21 +4159,21 @@ mono_metadata_generic_context_equal (const MonoGenericContext *g1, const MonoGen
 guint
 mono_metadata_type_hash (MonoType *t1)
 {
-	guint hash = t1->type;
+	guint hash = mono_type_get_type(t1);
 
-	hash |= t1->byref << 6; /* do not collide with t1->type values */
-	switch (t1->type) {
+	hash |= mono_type_get_byref(t1) << 6; /* do not collide with t1->type values */
+	switch (mono_type_get_type(t1)) {
 	case MONO_TYPE_VALUETYPE:
 	case MONO_TYPE_CLASS:
 	case MONO_TYPE_SZARRAY:
 		/* check if the distribution is good enough */
-		return ((hash << 5) - hash) ^ g_str_hash (t1->data.klass->name);
+		return ((hash << 5) - hash) ^ g_str_hash (mono_type_get_class(t1)->name);
 	case MONO_TYPE_PTR:
-		return ((hash << 5) - hash) ^ mono_metadata_type_hash (t1->data.type);
+		return ((hash << 5) - hash) ^ mono_metadata_type_hash (fix(t1->data.type));
 	case MONO_TYPE_ARRAY:
-		return ((hash << 5) - hash) ^ mono_metadata_type_hash (&t1->data.array->eklass->byval_arg);
+		return ((hash << 5) - hash) ^ mono_metadata_type_hash (&((MonoArrayType *)fix(t1->data.array))->eklass->byval_arg);
 	case MONO_TYPE_GENERICINST:
-		return ((hash << 5) - hash) ^ mono_generic_class_hash (t1->data.generic_class);
+		return ((hash << 5) - hash) ^ mono_generic_class_hash (fix(t1->data.generic_class));
 	}
 	return hash;
 }
@@ -4216,14 +4221,14 @@ mono_metadata_class_equal (MonoClass *c1, MonoClass *c2, gboolean signature_only
 		return _mono_metadata_generic_class_container_equal (c1->generic_class, c2, signature_only);
 	if (c1->generic_container && c2->generic_class)
 		return _mono_metadata_generic_class_container_equal (c2->generic_class, c1, signature_only);
-	if ((c1->byval_arg.type == MONO_TYPE_VAR) && (c2->byval_arg.type == MONO_TYPE_VAR))
+	if ((mono_type_get_type(&c1->byval_arg) == MONO_TYPE_VAR) && (mono_type_get_type(&c2->byval_arg) == MONO_TYPE_VAR))
 		return mono_metadata_generic_param_equal (
 			c1->byval_arg.data.generic_param, c2->byval_arg.data.generic_param, signature_only);
-	if ((c1->byval_arg.type == MONO_TYPE_MVAR) && (c2->byval_arg.type == MONO_TYPE_MVAR))
+	if ((mono_type_get_type(&c1->byval_arg) == MONO_TYPE_MVAR) && (mono_type_get_type(&c2->byval_arg) == MONO_TYPE_MVAR))
 		return mono_metadata_generic_param_equal (
 			c1->byval_arg.data.generic_param, c2->byval_arg.data.generic_param, signature_only);
 	if (signature_only &&
-	    (c1->byval_arg.type == MONO_TYPE_SZARRAY) && (c2->byval_arg.type == MONO_TYPE_SZARRAY))
+	    (mono_type_get_type(&c1->byval_arg) == MONO_TYPE_SZARRAY) && (mono_type_get_type(&c2->byval_arg) == MONO_TYPE_SZARRAY))
 		return mono_metadata_class_equal (c1->byval_arg.data.klass, c2->byval_arg.data.klass, signature_only);
 	return FALSE;
 }
@@ -4402,8 +4407,8 @@ mono_metadata_type_dup (MonoImage *image, const MonoType *o)
 {
 	MonoType *r = NULL;
 	int sizeof_o = MONO_SIZEOF_TYPE;
-	if (o->num_mods)
-		sizeof_o += o->num_mods  * sizeof (MonoCustomMod);
+	if (mono_type_get_num_mods(o))
+		sizeof_o += mono_type_get_num_mods(o)  * sizeof (MonoCustomMod);
 
 	r = image ? mono_image_alloc0 (image, sizeof_o) : g_malloc (sizeof_o);
 
@@ -5528,7 +5533,7 @@ mono_type_is_byref (MonoType *type)
 int
 mono_type_get_type (MonoType *type)
 {
-	return mono_type_get_type_code(type);
+	return mono_type_code_get_type(type);
 }
 
 /**
@@ -5544,7 +5549,7 @@ MonoMethodSignature*
 mono_type_get_signature (MonoType *type)
 {
 	g_assert (mono_type_get_type(type) == MONO_TYPE_FNPTR);
-	return type->data.method;
+	return fix(type->data.method);
 }
 
 /**
@@ -5561,7 +5566,7 @@ MonoClass*
 mono_type_get_class (MonoType *type)
 {
 	/* FIXME: review the runtime users before adding the assert here */
-	return type->data.klass;
+	return fix(type->data.klass);
 }
 
 /**
@@ -5577,7 +5582,7 @@ mono_type_get_class (MonoType *type)
 MonoArrayType*
 mono_type_get_array_type (MonoType *type)
 {
-	return type->data.array;
+	return fix(type->data.array);
 }
 
 /**
@@ -5594,7 +5599,7 @@ MonoType*
 mono_type_get_ptr_type (MonoType *type)
 {
 	g_assert (type->type == MONO_TYPE_PTR);
-	return type->data.type;
+	return fix(type->data.type);
 }
 
 MonoClass*
@@ -5613,17 +5618,18 @@ mono_type_get_modifiers (MonoType *type, gboolean *is_required, gpointer *iter)
 gboolean
 mono_type_is_reference (MonoType *type)
 {
-	return (type && (((type->type == MONO_TYPE_STRING) ||
-		(type->type == MONO_TYPE_SZARRAY) || (type->type == MONO_TYPE_CLASS) ||
-		(type->type == MONO_TYPE_OBJECT) || (type->type == MONO_TYPE_ARRAY)) ||
-		((type->type == MONO_TYPE_GENERICINST) &&
+    MonoTypeEnum code = mono_type_get_type(type);
+	return (type && (((code == MONO_TYPE_STRING) ||
+		(code == MONO_TYPE_SZARRAY) || (code == MONO_TYPE_CLASS) ||
+		(code == MONO_TYPE_OBJECT) || (code == MONO_TYPE_ARRAY)) ||
+		((code == MONO_TYPE_GENERICINST) &&
 		!mono_metadata_generic_class_is_valuetype (type->data.generic_class))));
 }
 
 MonoType*
 mono_signature_get_return_type (MonoMethodSignature *sig)
 {
-	return sig->ret;
+	return fix(sig->ret);
 }
 
 MonoType*
@@ -5634,9 +5640,9 @@ mono_signature_get_params (MonoMethodSignature *sig, gpointer *iter)
 		return NULL;
 	if (!*iter) {
 		/* start from the first */
-		if (sig->param_count) {
+		if (fix_v(sig->param_count)) {
 			*iter = &sig->params [0];
-			return sig->params [0];
+			return fix(sig->params [0]);
 		} else {
 			/* no method */
 			return NULL;
@@ -5654,13 +5660,13 @@ mono_signature_get_params (MonoMethodSignature *sig, gpointer *iter)
 guint32
 mono_signature_get_param_count (MonoMethodSignature *sig)
 {
-	return sig->param_count;
+	return fix_v(sig->param_count);
 }
 
 guint32
 mono_signature_get_call_conv (MonoMethodSignature *sig)
 {
-	return sig->call_convention;
+	return mono_method_signature_get_call_convention(sig);
 }
 
 int
@@ -5672,13 +5678,13 @@ mono_signature_vararg_start (MonoMethodSignature *sig)
 gboolean
 mono_signature_is_instance (MonoMethodSignature *sig)
 {
-	return sig->hasthis;
+	return mono_method_signature_get_hasthis(sig);
 }
 
 gboolean
 mono_signature_explicit_this (MonoMethodSignature *sig)
 {
-	return sig->explicit_this;
+	return mono_method_signature_get_explicit_this(sig);
 }
 
 /* for use with allocated memory blocks (assumes alignment is to 8 bytes) */
